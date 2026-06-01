@@ -1,0 +1,2 @@
+"""OpenRouter model provider primitives."""
+

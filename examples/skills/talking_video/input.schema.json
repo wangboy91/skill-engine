@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["topic", "platform", "duration_seconds"],
+  "additionalProperties": true,
+  "properties": {
+    "topic": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "string"
+    },
+    "duration_seconds": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

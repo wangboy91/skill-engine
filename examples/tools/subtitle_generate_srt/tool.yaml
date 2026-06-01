@@ -1,0 +1,17 @@
+id: subtitle_generate_srt
+type: python
+name: 生成字幕文件
+description: 根据音频和口播文案生成 SRT 字幕
+entry: main.py
+input_schema: input.schema.json
+output_schema: output.schema.json
+
+runtime:
+  timeout_seconds: 120
+  memory_mb: 512
+  network: false
+  filesystem:
+    read:
+      - workspace
+    write:
+      - artifacts

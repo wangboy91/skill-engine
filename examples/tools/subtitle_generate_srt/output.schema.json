@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["srt_path", "segments"],
+  "additionalProperties": false,
+  "properties": {
+    "srt_path": {
+      "type": "string"
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  }
+}

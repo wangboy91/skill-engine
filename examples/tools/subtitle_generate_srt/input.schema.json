@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["text", "audio_path"],
+  "additionalProperties": false,
+  "properties": {
+    "text": {
+      "type": "string"
+    },
+    "audio_path": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["script", "titles", "subtitle_path", "segments"],
+  "additionalProperties": true,
+  "properties": {
+    "script": {
+      "type": "string"
+    },
+    "titles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "subtitle_path": {
+      "type": "string"
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  }
+}

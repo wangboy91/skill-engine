@@ -1,0 +1,168 @@
+"""OpenAI-compatible model provider primitives."""
+
+import json
+import os
+import re
+from typing import Any
+
+import httpx
+
+from bkl_engine.core.config import ModelProfileConfig
+from bkl_engine.core.errors import BklEngineError
+from bkl_engine.models.router import ModelResponse, ModelUsage, ToolCallRequest
+
+
+class OpenAICompatibleProvider:
+    def __init__(
+        self,
+        config: ModelProfileConfig,
+        client: httpx.AsyncClient | None = None,
+    ) -> None:
+        self.config = config
+        self.client = client or httpx.AsyncClient(timeout=config.timeout_seconds)
+
+    async def chat(
+        self,
+        profile: str,
+        messages: list[dict[str, object]],
+        tools: list[dict[str, object]],
+    ) -> ModelResponse:
+        del profile
+        if self.config.base_url is None:
+            raise BklEngineError("CONFIG_INVALID", "OpenAI-compatible base_url is required")
+
+        response = await self.client.post(
+            f"{self.config.base_url.rstrip('/')}/chat/completions",
+            headers=self._headers(),
+            json={
+                "model": self.config.model,
+                "messages": messages,
+                "tools": self._format_tools(tools),
+            },
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise BklEngineError("MODEL_PROVIDER_ERROR", "OpenAI-compatible response is invalid")
+        return self._parse_response(payload)
+
+    def _headers(self) -> dict[str, str]:
+        api_key = self._api_key()
+        auth_header = self.config.auth_header or "Authorization"
+        auth_scheme = self.config.auth_scheme or "Bearer"
+        auth_value = f"{auth_scheme} {api_key}" if auth_scheme else api_key
+        return {
+            auth_header: auth_value,
+            "Content-Type": "application/json",
+        }
+
+    def _api_key(self) -> str:
+        if self.config.api_key_env is None:
+            raise BklEngineError("CONFIG_INVALID", "api_key_env is required")
+        api_key = os.environ.get(self.config.api_key_env)
+        if api_key is None:
+            raise BklEngineError(
+                "SECRET_NOT_AVAILABLE",
+                f"Missing model credential: {self.config.api_key_env}",
+            )
+        return api_key
+
+    def _format_tools(self, tools: list[dict[str, object]]) -> list[dict[str, object]]:
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": tool["id"],
+                    "description": tool.get("description", ""),
+                    "parameters": tool.get("input_schema", {"type": "object"}),
+                },
+            }
+            for tool in tools
+        ]
+
+    def _parse_response(self, payload: dict[str, Any]) -> ModelResponse:
+        choices = payload.get("choices", [])
+        if not isinstance(choices, list) or not choices:
+            raise BklEngineError(
+                "MODEL_PROVIDER_ERROR",
+                "OpenAI-compatible response has no choices",
+            )
+
+        first_choice = choices[0]
+        if not isinstance(first_choice, dict):
+            raise BklEngineError("MODEL_PROVIDER_ERROR", "OpenAI-compatible choice is invalid")
+        message = first_choice.get("message", {})
+        if not isinstance(message, dict):
+            raise BklEngineError("MODEL_PROVIDER_ERROR", "OpenAI-compatible message is invalid")
+
+        usage_payload = payload.get("usage", {})
+        usage = ModelUsage()
+        if isinstance(usage_payload, dict):
+            usage = ModelUsage(
+                input_tokens=int(usage_payload.get("prompt_tokens", 0)),
+                output_tokens=int(usage_payload.get("completion_tokens", 0)),
+            )
+
+        tool_calls = self._parse_tool_calls(message.get("tool_calls", []))
+        if tool_calls:
+            return ModelResponse(tool_calls=tool_calls, usage=usage)
+
+        return ModelResponse(
+            final_output=self._parse_content(message.get("content")),
+            usage=usage,
+        )
+
+    def _parse_tool_calls(self, raw_tool_calls: object) -> list[ToolCallRequest]:
+        if not isinstance(raw_tool_calls, list):
+            return []
+
+        parsed: list[ToolCallRequest] = []
+        for raw_call in raw_tool_calls:
+            if not isinstance(raw_call, dict):
+                continue
+            function = raw_call.get("function", {})
+            if not isinstance(function, dict):
+                continue
+            name = function.get("name")
+            if not isinstance(name, str):
+                continue
+            parsed.append(
+                ToolCallRequest(
+                    id=str(raw_call.get("id", name)),
+                    tool_id=name,
+                    arguments=self._parse_arguments(function.get("arguments")),
+                )
+            )
+        return parsed
+
+    def _parse_arguments(self, arguments: object) -> dict[str, object]:
+        if isinstance(arguments, dict):
+            return dict(arguments)
+        if isinstance(arguments, str):
+            try:
+                parsed = json.loads(arguments)
+            except json.JSONDecodeError:
+                return {}
+            if isinstance(parsed, dict):
+                return dict(parsed)
+        return {}
+
+    def _parse_content(self, content: object) -> dict[str, object]:
+        if isinstance(content, dict):
+            return dict(content)
+        if isinstance(content, str):
+            content = self._strip_code_fence(content)
+            try:
+                parsed = json.loads(content)
+            except json.JSONDecodeError:
+                return {"text": content}
+            if isinstance(parsed, dict):
+                return dict(parsed)
+            return {"text": content}
+        return {}
+
+    def _strip_code_fence(self, content: str) -> str:
+        match = re.match(r"\A```(?:json)?\s*(.*?)\s*```\Z", content.strip(), re.DOTALL)
+        if match is None:
+            return content
+        return match.group(1).strip()
