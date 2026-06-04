@@ -309,6 +309,7 @@ Redis / Queue
 ```text
 加载 Skill
 校验 SKILL.md frontmatter
+校验 skill.config.json
 校验 input_schema
 校验 output_schema
 管理 Skill 版本
@@ -765,12 +766,13 @@ Skill 目录结构：
 skills/
   talking_video/
     SKILL.md
+    skill.config.json
     input.schema.json
     output.schema.json
     examples.json
 ```
 
-第一版采用行业通用 Skill 形态：每个 Skill 包必须包含 `SKILL.md`。
+第一版采用行业通用 Skill 形态：每个 Skill 包必须包含标准 `SKILL.md`，并通过 BKL 专用的 `skill.config.json` 描述运行时配置。
 
 `SKILL.md` 由两部分组成：
 
@@ -786,7 +788,7 @@ name
 description
 ```
 
-BKL Engine 运行时扩展字段统一放在 `bkl:` 下，避免污染标准 Skill 元数据。
+`SKILL.md` 不允许写入 BKL Engine 私有运行时字段。schema、tools、model、limits 等引擎配置统一放在同目录的 `skill.config.json`，避免污染标准 Skill 元数据和 Markdown instructions。
 
 ### 14.1 SKILL.md 示例
 
@@ -794,44 +796,6 @@ BKL Engine 运行时扩展字段统一放在 `bkl:` 下，避免污染标准 Ski
 ---
 name: talking-video
 description: Use when generating a structured talking-video draft from a topic, platform, persona, and product information.
-
-bkl:
-  id: talking_video
-  version: 0.1.0
-  input_schema: input.schema.json
-  output_schema: output.schema.json
-
-  model:
-    profile: strong
-    fallback_profile: fast
-
-  tools:
-    allow:
-      - script_writer
-      - title_generator
-      - volc_tts_generate_audio
-      - avatar_video_create
-      - subtitle_generate_srt
-      - ffmpeg_merge_video
-      - viral_score_evaluate
-
-  limits:
-    max_iterations: 8
-    max_tool_calls: 12
-    max_tokens: 12000
-    timeout_seconds: 600
-    max_credits: 100
-
-  permissions:
-    network: true
-    filesystem: workspace_only
-    secrets:
-      - VOLCENGINE_API_KEY
-      - AVATAR_API_KEY
-
-  final_output:
-    required: true
-    format: json
 ---
 
 你是一个“AI口播视频生成 Skill”。
@@ -856,9 +820,54 @@ bkl:
 {{input}}
 ```
 
-### 14.2 格式约束
+### 14.2 skill.config.json 示例
 
-第一版只支持 `SKILL.md`，避免项目同时存在两套 Skill 规范。
+```json
+{
+  "id": "talking_video",
+  "version": "0.1.0",
+  "input_schema": "input.schema.json",
+  "output_schema": "output.schema.json",
+  "model": {
+    "profile": "strong",
+    "fallback_profile": "fast"
+  },
+  "tools": {
+    "allow": [
+      "script_writer",
+      "title_generator",
+      "volc_tts_generate_audio",
+      "avatar_video_create",
+      "subtitle_generate_srt",
+      "ffmpeg_merge_video",
+      "viral_score_evaluate"
+    ]
+  },
+  "limits": {
+    "max_iterations": 8,
+    "max_tool_calls": 12,
+    "max_tokens": 12000,
+    "timeout_seconds": 600,
+    "max_credits": 100
+  },
+  "permissions": {
+    "network": true,
+    "filesystem": "workspace_only",
+    "secrets": [
+      "VOLCENGINE_API_KEY",
+      "AVATAR_API_KEY"
+    ]
+  },
+  "final_output": {
+    "required": true,
+    "format": "json"
+  }
+}
+```
+
+### 14.3 格式约束
+
+第一版只支持这一套 Skill 包规范：标准 `SKILL.md` + BKL `skill.config.json`。旧式 `skill.yaml + prompt.md` 不兼容，避免项目同时存在两套 Skill 规范。
 
 ---
 
@@ -1108,6 +1117,9 @@ async def run_skill(skill_id: str, input_data: dict) -> dict:
 命令示例：
 
 ```bash
+bkl init
+bkl serve --host 127.0.0.1 --port 8000 --config bkl.yaml
+
 bkl tool register ./tools/subtitle_generate_srt
 bkl tool import-openapi ./examples/volc-openapi.json
 bkl tool list
@@ -1121,6 +1133,10 @@ bkl run list
 bkl run show <run_id>
 bkl trace show <run_id>
 ```
+
+`bkl init` 负责生成 `bkl.yaml + .env`。真实 API Key 只能写入 `.env`，不允许写入 `bkl.yaml`。
+
+`bkl serve` 负责启动 FastAPI 服务。服务端部署、本地 GUI、其他业务系统 HTTP 调用都应复用这个入口，不再单独绕过 `SkillEngine`。
 
 ---
 
@@ -1192,6 +1208,7 @@ bkl-skill-engine/
     skills/
       talking_video/
         SKILL.md
+        skill.config.json
         input.schema.json
         output.schema.json
         examples.json
@@ -1682,10 +1699,11 @@ pytest 通过
 1. 定义 Skill、SkillLimits、SkillModelConfig。
 2. 支持读取行业标准 SKILL.md。
 3. 支持解析 YAML frontmatter 和 Markdown instructions。
-4. 支持读取 input.schema.json 和 output.schema.json。
-5. 支持 allowed_tools 配置。
-6. 添加 examples/skills/talking_video 示例。
-7. 添加测试用例。
+4. 支持读取 BKL skill.config.json。
+5. 支持读取 input.schema.json 和 output.schema.json。
+6. 支持 allowed_tools 配置。
+7. 添加 examples/skills/talking_video 示例。
+8. 添加测试用例。
 ```
 
 验收标准：
@@ -1693,6 +1711,7 @@ pytest 通过
 ```text
 可以成功加载 talking_video Skill
 缺少 SKILL.md frontmatter 时会报错
+缺少 skill.config.json 时会报错
 allowed_tools 为空时会报错
 pytest 通过
 ```
@@ -1885,19 +1904,23 @@ pytest 通过
 请实现 Typer CLI。
 
 要求：
-1. bkl tool register <path>
-2. bkl tool list
-3. bkl tool test <tool_id> <input_json>
-4. bkl skill register <path>
-5. bkl skill list
-6. bkl skill run <skill_id> <input_json>
-7. bkl trace show <run_id>
-8. 使用 Rich 美化输出。
+1. bkl init
+2. bkl serve
+3. bkl tool register <path>
+4. bkl tool list
+5. bkl tool test <tool_id> <input_json>
+6. bkl skill register <path>
+7. bkl skill list
+8. bkl skill run <skill_id> <input_json>
+9. bkl trace show <run_id>
+10. 使用 Rich 美化输出。
 ```
 
 验收标准：
 
 ```text
+可以通过 CLI 初始化 bkl.yaml + .env
+可以通过 CLI 启动 FastAPI 服务
 可以通过 CLI 注册 Tool
 可以通过 CLI 注册 Skill
 可以通过 CLI 运行 Skill
@@ -2198,6 +2221,53 @@ CLI
 
 ---
 
+## 34.1 安装与部署形态
+
+BKL 只维护一个 Core Engine，不做多套互相分叉的引擎实现。
+
+详细决策文档见 [BKL Core Engine Installation Forms](BKL_Core_Engine_Installation_Forms.md)。
+
+推荐安装形态：
+
+```text
+bkl-core
+  Skill Loader
+  Tool Runner
+  Model Router
+  Runtime
+  Trace / Artifact / Catalog
+
+bkl-cli
+  bkl init
+  bkl chat
+  bkl skill run
+  bkl tool import
+  bkl serve
+
+bkl-server
+  FastAPI HTTP API
+  Auth
+  Persistence
+  Worker / Queue
+  Docker image
+
+bkl-desktop
+  Local GUI
+  Local bkl serve
+  Model / Tool / Skill / Run management
+```
+
+约束：
+
+```text
+Skill 规范只有一套：SKILL.md + skill.config.json
+Tool 规范只有一套：tool.yaml
+模型配置只有一套：bkl.yaml + .env
+CLI、HTTP、GUI 都调用同一个 SkillEngine
+```
+
+---
+
 ## 35. v0.1 开发前补充约定
 
 当前文档已经可以开始实现，但为了让第一版 API、CLI、SDK 三种调用方式共享同一套内核，v0.1 开发前需要补齐以下实现契约。
@@ -2217,6 +2287,9 @@ Trace Store
 Artifact Store
 Typer CLI
 FastAPI API
+bkl init
+bkl serve
+持久化 Catalog：.bkl/catalog.json
 ```
 
 P0 中 OpenAI-compatible Provider、API Tool Executor、OpenAPI Importer 可以实现基础骨架，但测试主链路必须优先使用 Mock Model Provider，避免第一阶段被外部模型 Key、网络和第三方 API 阻塞。

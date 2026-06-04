@@ -27,6 +27,65 @@ def test_python_tool_runner_executes_tool_with_json_stdio(tmp_path: Path) -> Non
     assert result.stderr == ""
 
 
+def test_wangbudong_prompt_pack_tool_writes_markdown_files(tmp_path: Path) -> None:
+    tool = load_tool("examples/tools/wangbudong_write_prompt_pack")
+    result = asyncio.run(
+        PythonToolRunner().execute(
+            tool,
+            {
+                "experiment_title": "彩虹牛奶",
+                "materials": ["牛奶", "色素", "洗洁精", "棉签"],
+                "target_phenomenon": "色素在牛奶表面扩散成彩虹纹路",
+                "age_range": "3-8岁",
+                "content_lane": "趣味引流",
+                "include_operations_card": False,
+            },
+            ToolExecutionContext(
+                run_id="run_test",
+                tool_call_id="call_wangbudong",
+                artifact_dir=tmp_path,
+            ),
+        )
+    )
+
+    assert result.output["experiment_title"] == "彩虹牛奶"
+    assert result.output["output_dir"] == str(tmp_path)
+    assert "00-实验拆解.md" in result.output["files"]
+    assert "01-首图提示词.md" in result.output["files"]
+    assert "02-分步骤提示词.md" in result.output["files"]
+    assert "03-小红书文案.md" in result.output["files"]
+    assert (tmp_path / "00-实验拆解.md").exists()
+    assert "实验合理性论证" in (tmp_path / "00-实验拆解.md").read_text(encoding="utf-8")
+
+
+def test_python_tool_runner_resolves_relative_artifact_dir_from_caller_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tool = load_tool(Path.cwd() / "examples/tools/wangbudong_write_prompt_pack")
+    monkeypatch.chdir(tmp_path)
+
+    result = asyncio.run(
+        PythonToolRunner().execute(
+            tool,
+            {
+                "experiment_title": "彩虹牛奶",
+                "materials": ["牛奶", "色素", "洗洁精", "棉签"],
+                "target_phenomenon": "色素在牛奶表面扩散成彩虹纹路",
+            },
+            ToolExecutionContext(
+                run_id="run_test",
+                tool_call_id="call_relative",
+                artifact_dir=Path("relative_artifacts"),
+            ),
+        )
+    )
+
+    expected_dir = tmp_path / "relative_artifacts"
+    assert result.output["output_dir"] == str(expected_dir.resolve())
+    assert (expected_dir / "00-实验拆解.md").exists()
+
+
 def test_python_tool_runner_rejects_invalid_input_schema(tmp_path: Path) -> None:
     tool = load_tool("examples/tools/subtitle_generate_srt")
 

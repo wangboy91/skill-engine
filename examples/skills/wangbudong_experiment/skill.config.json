@@ -1,0 +1,21 @@
+{
+  "id": "wangbudong_experiment",
+  "version": "0.1.0",
+  "input_schema": "input.schema.json",
+  "output_schema": "output.schema.json",
+  "model": {
+    "profile": "mock"
+  },
+  "tools": {
+    "allow": [
+      "wangbudong_write_prompt_pack"
+    ]
+  },
+  "limits": {
+    "max_iterations": 2,
+    "max_tool_calls": 2,
+    "max_tokens": 12000,
+    "timeout_seconds": 600,
+    "max_credits": 100
+  }
+}

@@ -1,0 +1,16 @@
+id: wangbudong_write_prompt_pack
+type: python
+name: 写入王不懂小实验提示词包
+description: 根据实验拆解信息生成王不懂小实验风格的 Markdown 提示词包
+entry: main.py
+input_schema: input.schema.json
+output_schema: output.schema.json
+runtime:
+  timeout_seconds: 120
+  memory_mb: 512
+  network: false
+  filesystem:
+    read:
+      - workspace
+    write:
+      - artifacts

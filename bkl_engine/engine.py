@@ -8,6 +8,7 @@ from bkl_engine.models.router import MockModelProvider, ModelProvider, ModelRout
 from bkl_engine.skills.registry import InMemorySkillRegistry
 from bkl_engine.skills.runtime import SkillRuntime
 from bkl_engine.storage.artifact_store import LocalArtifactStore
+from bkl_engine.storage.catalog_store import JsonCatalogStore
 from bkl_engine.storage.repositories import InMemoryRunStore
 from bkl_engine.tools.executor import ToolExecutor
 from bkl_engine.tools.registry import InMemoryToolRegistry
@@ -24,6 +25,7 @@ class SkillEngine:
         trace_store: InMemoryTraceStore,
         artifact_store: LocalArtifactStore,
         run_store: InMemoryRunStore,
+        catalog_store: JsonCatalogStore | None = None,
     ) -> None:
         self.skill_registry = skill_registry
         self.tool_registry = tool_registry
@@ -32,6 +34,7 @@ class SkillEngine:
         self.trace_store = trace_store
         self.artifact_store = artifact_store
         self.run_store = run_store
+        self.catalog_store = catalog_store
         self.runtime = SkillRuntime(
             skill_registry=skill_registry,
             tool_registry=tool_registry,
@@ -43,9 +46,14 @@ class SkillEngine:
         )
 
     @classmethod
-    def load(cls, config_path: str | Path | None = None) -> "SkillEngine":
+    def load(
+        cls,
+        config_path: str | Path | None = None,
+        catalog_path: str | Path | None = None,
+    ) -> "SkillEngine":
         config = load_engine_config(config_path or "bkl.yaml")
-        return cls(
+        catalog_store = JsonCatalogStore(catalog_path) if catalog_path is not None else None
+        engine = cls(
             skill_registry=InMemorySkillRegistry(),
             tool_registry=InMemoryToolRegistry(),
             model_router=ModelRouter.from_config(config),
@@ -53,7 +61,10 @@ class SkillEngine:
             trace_store=InMemoryTraceStore(),
             artifact_store=LocalArtifactStore("data/artifacts"),
             run_store=InMemoryRunStore(),
+            catalog_store=catalog_store,
         )
+        engine.load_catalog()
+        return engine
 
     @classmethod
     def create_for_testing(
@@ -72,10 +83,26 @@ class SkillEngine:
         )
 
     async def register_tool(self, path: str | Path) -> Tool:
-        return self.tool_registry.register_tool(path)
+        tool = self.tool_registry.register_tool(path)
+        if self.catalog_store is not None:
+            self.catalog_store.upsert_tool(tool)
+        return tool
 
     async def register_skill(self, path: str | Path) -> Skill:
-        return self.skill_registry.register_skill(path)
+        skill = self.skill_registry.register_skill(path)
+        if self.catalog_store is not None:
+            self.catalog_store.upsert_skill(skill)
+        return skill
+
+    def load_catalog(self) -> None:
+        if self.catalog_store is None:
+            return
+        for entry in self.catalog_store.list_tools():
+            if entry.enabled:
+                self.tool_registry.register_tool(entry.path)
+        for entry in self.catalog_store.list_skills():
+            if entry.enabled:
+                self.skill_registry.register_skill(entry.path)
 
     async def run_skill(
         self,

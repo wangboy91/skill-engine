@@ -1,0 +1,33 @@
+[
+  {
+    "name": "彩虹牛奶",
+    "input": {
+      "experiment_title": "彩虹牛奶",
+      "materials": [
+        "牛奶",
+        "食用色素",
+        "洗洁精",
+        "棉签",
+        "浅盘"
+      ],
+      "target_phenomenon": "色素在牛奶表面扩散成彩虹纹路",
+      "age_range": "3-8岁",
+      "content_lane": "趣味引流"
+    },
+    "output": {
+      "experiment_title": "彩虹牛奶",
+      "output_dir": "data/artifacts/<run_id>/<tool_call_id>",
+      "files": [
+        "00-实验拆解.md",
+        "01-首图提示词.md",
+        "02-分步骤提示词.md",
+        "03-小红书文案.md"
+      ],
+      "feasibility_summary": "彩虹牛奶采用家庭低风险材料，目标现象是色素在牛奶表面扩散成彩虹纹路。",
+      "cover_prompt": "1086x1448竖版中文亲子科学启蒙信息图...",
+      "step_prompt_count": 5,
+      "xiaohongshu_copy": "✨彩虹牛奶｜3-8岁在家也能观察的小实验...",
+      "safety_notes": []
+    }
+  }
+]

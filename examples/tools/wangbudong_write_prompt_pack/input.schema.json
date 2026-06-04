@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "experiment_title",
+    "materials",
+    "target_phenomenon"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "experiment_title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "materials": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "target_phenomenon": {
+      "type": "string",
+      "minLength": 1
+    },
+    "age_range": {
+      "type": "string",
+      "default": "3-8岁"
+    },
+    "content_lane": {
+      "type": "string",
+      "default": "趣味引流"
+    },
+    "include_operations_card": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}

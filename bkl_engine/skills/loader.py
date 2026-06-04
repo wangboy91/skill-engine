@@ -19,6 +19,9 @@ class SkillLoadError(BklEngineError):
         super().__init__("SKILL_LOAD_ERROR", message)
 
 
+RUNTIME_CONFIG_FILE = "skill.config.json"
+
+
 def load_skill(path: str | Path) -> Skill:
     skill_dir = _resolve_skill_dir(Path(path))
     standard_skill_path = skill_dir / "SKILL.md"
@@ -31,30 +34,35 @@ def _load_standard_skill(skill_dir: Path, skill_md_path: Path) -> Skill:
     frontmatter, body = _read_markdown_with_frontmatter(skill_md_path)
     _ensure_required_fields(
         frontmatter,
-        required=("name", "description", "bkl"),
+        required=("name", "description"),
         source=skill_md_path,
     )
 
-    bkl_config = frontmatter["bkl"]
-    if not isinstance(bkl_config, dict):
-        raise SkillLoadError(f"bkl frontmatter field must be an object: {skill_md_path}")
+    if "bkl" in frontmatter:
+        raise SkillLoadError(
+            f"SKILL.md must not contain BKL runtime config; move it to {RUNTIME_CONFIG_FILE}: "
+            f"{skill_md_path}"
+        )
+
+    runtime_config_path = skill_dir / RUNTIME_CONFIG_FILE
+    runtime_config = _load_runtime_config(runtime_config_path)
 
     raw_skill: JsonObject = {
-        "id": bkl_config.get("id", frontmatter["name"]),
+        "id": runtime_config.get("id", frontmatter["name"]),
         "name": frontmatter["name"],
-        "version": bkl_config.get("version", "0.1.0"),
+        "version": runtime_config.get("version", "0.1.0"),
         "description": frontmatter["description"],
-        "input_schema": bkl_config.get("input_schema"),
-        "output_schema": bkl_config.get("output_schema"),
+        "input_schema": runtime_config.get("input_schema"),
+        "output_schema": runtime_config.get("output_schema"),
         "prompt": body.strip(),
-        "model": bkl_config.get("model", {}),
-        "limits": bkl_config.get("limits", {}),
-        "tools": bkl_config.get("tools", {}),
+        "model": runtime_config.get("model", {}),
+        "limits": runtime_config.get("limits", {}),
+        "tools": runtime_config.get("tools", {}),
     }
     _ensure_required_fields(
         raw_skill,
         required=("id", "name", "version", "description", "input_schema", "output_schema"),
-        source=skill_md_path,
+        source=runtime_config_path,
     )
 
     raw_skill["input_schema"] = _load_schema(skill_dir, raw_skill["input_schema"], "input_schema")
@@ -63,7 +71,7 @@ def _load_standard_skill(skill_dir: Path, skill_md_path: Path) -> Skill:
         raw_skill["output_schema"],
         "output_schema",
     )
-    return _build_skill(raw_skill, skill_dir, skill_md_path)
+    return _build_skill(raw_skill, skill_dir, runtime_config_path)
 
 
 def _build_skill(raw_skill: JsonObject, skill_dir: Path, source: Path) -> Skill:
@@ -114,6 +122,18 @@ def _read_markdown_with_frontmatter(path: Path) -> tuple[JsonObject, str]:
     return dict(frontmatter), body
 
 
+def _load_runtime_config(path: Path) -> JsonObject:
+    if not path.exists():
+        raise SkillLoadError(f"Skill package must contain {RUNTIME_CONFIG_FILE}: {path.parent}")
+    try:
+        runtime_config = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SkillLoadError(f"Invalid JSON runtime config in {path}: {exc}") from exc
+    if not isinstance(runtime_config, dict):
+        raise SkillLoadError(f"{RUNTIME_CONFIG_FILE} must be a JSON object: {path}")
+    return dict(runtime_config)
+
+
 def _ensure_required_fields(raw_skill: JsonObject, required: tuple[str, ...], source: Path) -> None:
     missing = [field for field in required if field not in raw_skill]
     if missing:
@@ -140,7 +160,7 @@ def _load_schema(skill_dir: Path, schema_ref: Any, field_name: str) -> JsonObjec
 def _load_allowed_tools(raw_skill: JsonObject) -> list[str]:
     tools = raw_skill.get("tools", {})
     if not isinstance(tools, dict):
-        raise SkillLoadError("tools must be a YAML object")
+        raise SkillLoadError("tools must be an object")
     allowed = tools.get("allow", [])
     if not isinstance(allowed, list) or not all(isinstance(tool_id, str) for tool_id in allowed):
         raise SkillLoadError("tools.allow must be a list of tool ids")

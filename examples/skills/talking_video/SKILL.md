@@ -1,22 +1,6 @@
 ---
 name: talking-video
 description: Use when generating a structured talking-video draft from a topic, platform, and duration.
-bkl:
-  id: talking_video
-  version: 0.1.0
-  input_schema: input.schema.json
-  output_schema: output.schema.json
-  model:
-    profile: mock
-  tools:
-    allow:
-      - subtitle_generate_srt
-  limits:
-    max_iterations: 2
-    max_tool_calls: 2
-    max_tokens: 12000
-    timeout_seconds: 600
-    max_credits: 100
 ---
 
 # AI 口播视频生成
@@ -39,7 +23,7 @@ bkl:
 
 ## 可用工具
 
-你只能调用 `bkl.tools.allow` 中声明的工具。
+你只能调用 `skill.config.json` 的 `tools.allow` 中声明的工具。
 
 当前示例只允许调用：
 

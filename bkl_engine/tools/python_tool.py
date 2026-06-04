@@ -34,12 +34,13 @@ class PythonToolRunner:
         if not entry_path.exists():
             raise ToolExecutionError("PYTHON_TOOL_FAILED", f"Python entry not found: {entry_path}")
 
-        context.artifact_dir.mkdir(parents=True, exist_ok=True)
+        artifact_dir = context.artifact_dir.resolve()
+        artifact_dir.mkdir(parents=True, exist_ok=True)
         env = {
             **os.environ,
             "BKL_RUN_ID": context.run_id,
             "BKL_TOOL_CALL_ID": context.tool_call_id,
-            "BKL_ARTIFACT_DIR": str(context.artifact_dir),
+            "BKL_ARTIFACT_DIR": str(artifact_dir),
         }
 
         process = await asyncio.create_subprocess_exec(

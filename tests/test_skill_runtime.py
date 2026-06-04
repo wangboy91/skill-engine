@@ -37,6 +37,33 @@ def test_skill_engine_runs_mock_skill_with_python_tool(tmp_path: Path) -> None:
     )
 
 
+def test_skill_engine_runs_wangbudong_experiment_skill(tmp_path: Path) -> None:
+    engine = SkillEngine.create_for_testing(artifact_root=tmp_path)
+    asyncio.run(engine.register_tool("examples/tools/wangbudong_write_prompt_pack"))
+    asyncio.run(engine.register_skill("examples/skills/wangbudong_experiment"))
+
+    result = asyncio.run(
+        engine.run_skill(
+            "wangbudong_experiment",
+            {
+                "experiment_title": "彩虹牛奶",
+                "materials": ["牛奶", "色素", "洗洁精", "棉签"],
+                "target_phenomenon": "色素在牛奶表面扩散成彩虹纹路",
+                "age_range": "3-8岁",
+                "content_lane": "趣味引流",
+            },
+        )
+    )
+
+    assert result.status == "succeeded"
+    assert result.output is not None
+    assert result.output["experiment_title"] == "彩虹牛奶"
+    assert "00-实验拆解.md" in result.output["files"]
+    assert result.output["step_prompt_count"] >= 4
+    assert result.trace_summary["tool_called"] == 1
+    assert result.trace_summary["tool_succeeded"] == 1
+
+
 def test_skill_runtime_rejects_tool_not_allowed(tmp_path: Path) -> None:
     engine = SkillEngine.create_for_testing(
         artifact_root=tmp_path,

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "experiment_title",
+    "output_dir",
+    "files",
+    "feasibility_summary",
+    "cover_prompt",
+    "step_prompt_count",
+    "xiaohongshu_copy",
+    "safety_notes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "experiment_title": {
+      "type": "string"
+    },
+    "output_dir": {
+      "type": "string"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "feasibility_summary": {
+      "type": "string"
+    },
+    "cover_prompt": {
+      "type": "string"
+    },
+    "step_prompt_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "xiaohongshu_copy": {
+      "type": "string"
+    },
+    "safety_notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

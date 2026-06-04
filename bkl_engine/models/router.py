@@ -60,11 +60,22 @@ class MockModelProvider:
     ) -> ModelResponse:
         user_input = self._extract_user_input(messages)
         if not any(message.get("role") == "tool" for message in messages) and tools:
+            tool_id = str(tools[0]["id"])
+            if tool_id == "wangbudong_write_prompt_pack":
+                return ModelResponse(
+                    tool_calls=[
+                        ToolCallRequest(
+                            id="call_mock_1",
+                            tool_id=tool_id,
+                            arguments=self._wangbudong_tool_arguments(user_input),
+                        )
+                    ]
+                )
             return ModelResponse(
                 tool_calls=[
                     ToolCallRequest(
                         id="call_mock_1",
-                        tool_id=str(tools[0]["id"]),
+                        tool_id=tool_id,
                         arguments={
                             "text": str(
                                 user_input.get("topic")
@@ -78,6 +89,10 @@ class MockModelProvider:
             )
 
         observation = self._extract_last_tool_observation(messages)
+        if "output_dir" in observation and "files" in observation:
+            return ModelResponse(
+                final_output=self._wangbudong_final_output(user_input, observation)
+            )
         topic = str(user_input.get("topic") or "mock topic")
         return ModelResponse(
             final_output={
@@ -113,6 +128,49 @@ class MockModelProvider:
                     if isinstance(payload, dict):
                         return payload
         return {}
+
+    def _wangbudong_tool_arguments(self, user_input: dict[str, Any]) -> dict[str, object]:
+        raw_materials = user_input.get("materials")
+        if isinstance(raw_materials, list):
+            materials = [str(item) for item in raw_materials]
+        else:
+            materials = [str(raw_materials or "家庭常见材料")]
+        return {
+            "experiment_title": str(user_input.get("experiment_title") or "小实验"),
+            "materials": materials,
+            "target_phenomenon": str(user_input.get("target_phenomenon") or "观察明显变化"),
+            "age_range": str(user_input.get("age_range") or "3-8岁"),
+            "content_lane": str(user_input.get("content_lane") or "趣味引流"),
+            "include_operations_card": bool(user_input.get("include_operations_card", False)),
+        }
+
+    def _wangbudong_final_output(
+        self,
+        user_input: dict[str, Any],
+        observation: dict[str, Any],
+    ) -> dict[str, object]:
+        raw_files = observation.get("files", [])
+        files = [str(item) for item in raw_files] if isinstance(raw_files, list) else []
+        raw_safety_notes = observation.get("safety_notes", [])
+        safety_notes = (
+            [str(item) for item in raw_safety_notes]
+            if isinstance(raw_safety_notes, list)
+            else []
+        )
+        return {
+            "experiment_title": str(
+                observation.get("experiment_title")
+                or user_input.get("experiment_title")
+                or "小实验"
+            ),
+            "output_dir": str(observation.get("output_dir") or ""),
+            "files": files,
+            "feasibility_summary": str(observation.get("feasibility_summary") or ""),
+            "cover_prompt": str(observation.get("cover_prompt") or ""),
+            "step_prompt_count": int(observation.get("step_prompt_count") or 0),
+            "xiaohongshu_copy": str(observation.get("xiaohongshu_copy") or ""),
+            "safety_notes": safety_notes,
+        }
 
 
 class ModelRouter:
