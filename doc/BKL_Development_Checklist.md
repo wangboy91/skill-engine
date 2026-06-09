@@ -53,16 +53,24 @@ Acceptance:
 - [x] CLI register commands can write to a specified catalog path
 - [x] full test suite, ruff, and mypy pass
 
-## 3. Next Iteration: Natural Language Management
+## 3. Next Iteration: Agent Runtime and Natural Language Management
 
-Goal: allow users to manage the engine through natural language without duplicating runtime logic.
+Goal: support both direct Skill execution and Agent-orchestrated execution without duplicating runtime logic.
 
+Design reference: [BKL Agent Runtime Engineering Plan](BKL_Agent_Runtime_Engineering.md).
+
+- [ ] add `bkl_engine/agents/` package
+- [ ] add Agent schemas: session, turn, route decision, action plan, action result
+- [ ] add Scene Mapping: `scene_id -> skill_id + defaults`
 - [ ] add Skill Router: natural language request -> candidate `skill_id`
 - [ ] add confidence threshold and user confirmation for ambiguous routing
-- [ ] add Scene Mapping: `scene_id -> skill_id`
+- [ ] add Input Resolver: natural language + `input.schema.json` -> input draft + missing fields
 - [ ] expose input schema for schema-driven forms
 - [ ] document how frontend derives form fields from `input.schema.json`
+- [ ] add `AgentLoop` with bounded `max_agent_steps`
+- [ ] add deterministic Action Registry: run, list, import, validate, configure, explain trace
 - [ ] add `bkl chat`
+- [ ] add `bkl chat --once`
 - [ ] add safe management actions: configure model, import Tool, import Skill, validate, run, list catalog
 - [ ] use deterministic code paths for writes
 - [ ] require confirmation before file writes or destructive changes
@@ -74,6 +82,8 @@ Acceptance:
 - [ ] user can ask to import a Tool by path
 - [ ] user can ask to import a Skill by path
 - [ ] user can ask to run a registered Skill with natural language input
+- [ ] user can run a Skill through `scene_id -> skill_id`
+- [ ] missing required input fields trigger a follow-up question
 - [ ] chat actions are recorded in trace
 - [ ] unsafe writes require confirmation
 

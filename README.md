@@ -35,6 +35,10 @@ Skill、Tool、模型配置在所有形态下保持同一套规范。
 
 Skill 运行请求和路由选择见 [BKL Skill Run Request and Routing](doc/BKL_Skill_Run_Request_and_Routing.md)。
 
+Agent 工程化设计见 [BKL Agent Runtime Engineering Plan](doc/BKL_Agent_Runtime_Engineering.md)。
+
+代码目录结构和文件职责见 [BKL Project Structure](doc/BKL_Project_Structure.md)。
+
 ### Skill 格式
 
 Skill 包只支持一套规范：标准 `SKILL.md` + BKL `skill.config.json`。
@@ -303,6 +307,10 @@ Skill, Tool, and model configuration formats stay the same across all forms.
 See [BKL Core Engine Installation Forms](doc/BKL_Core_Engine_Installation_Forms.md) for the detailed architecture decision.
 
 See [BKL Skill Run Request and Routing](doc/BKL_Skill_Run_Request_and_Routing.md) for run request and routing details.
+
+See [BKL Agent Runtime Engineering Plan](doc/BKL_Agent_Runtime_Engineering.md) for the Agent orchestration design.
+
+See [BKL Project Structure](doc/BKL_Project_Structure.md) for source layout and file responsibilities.
 
 ### Skill Format
 

@@ -80,6 +80,24 @@ AI口播视频智能体 Agent
 6. 第一版不做复杂 Workflow，不做流程图，不做多 Agent 协作。
 7. 后续所有项目通过微服务 API 或 Python SDK 复用该 Engine。
 
+### 3.1 两种执行能力
+
+BKL 必须同时支持两种执行模式：
+
+```text
+Direct Skill Execution
+  调用方明确传入 skill_id + input JSON
+  适合 API、CLI、自动化任务和稳定生产集成。
+
+Agent-Orchestrated Execution
+  用户提供自然语言或 scene_id
+  Agent 负责识别意图、选择 Skill、补齐参数、要求确认、调用 SkillEngine。
+```
+
+这两种模式不能分裂成两套系统。Agent 是 `SkillEngine` 外面的一层受控编排，不是新的业务运行时。
+
+详细设计见 [BKL Agent Runtime Engineering Plan](BKL_Agent_Runtime_Engineering.md)。
+
 ---
 
 ## 4. 系统边界
@@ -1141,6 +1159,8 @@ bkl trace show <run_id>
 ---
 
 ## 20. 项目目录结构
+
+当前源码目录职责详见 [BKL Project Structure](BKL_Project_Structure.md)。本节保留宏观目录结构，具体文件说明以代码导览文档为准。
 
 ```text
 bkl-skill-engine/
