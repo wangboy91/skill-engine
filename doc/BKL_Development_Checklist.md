@@ -59,31 +59,32 @@ Goal: support both direct Skill execution and Agent-orchestrated execution witho
 
 Design reference: [BKL Agent Runtime Engineering Plan](BKL_Agent_Runtime_Engineering.md).
 
-- [ ] add `bkl_engine/agents/` package
-- [ ] add Agent schemas: session, turn, route decision, action plan, action result
-- [ ] add Scene Mapping: `scene_id -> skill_id + defaults`
-- [ ] add Skill Router: natural language request -> candidate `skill_id`
-- [ ] add confidence threshold and user confirmation for ambiguous routing
-- [ ] add Input Resolver: natural language + `input.schema.json` -> input draft + missing fields
+- [x] add `bkl_engine/agents/` package
+- [x] add Agent schemas: session, turn, route decision, action plan, action result
+- [x] add Scene Mapping: `scene_id -> skill_id + defaults`
+- [x] add Skill Router: natural language request -> candidate `skill_id`
+- [x] add confidence threshold and user confirmation for ambiguous routing
+- [x] add Input Resolver: natural language + `input.schema.json` -> input draft + missing fields
 - [ ] expose input schema for schema-driven forms
 - [ ] document how frontend derives form fields from `input.schema.json`
-- [ ] add `AgentLoop` with bounded `max_agent_steps`
-- [ ] add deterministic Action Registry: run, list, import, validate, configure, explain trace
-- [ ] add `bkl chat`
-- [ ] add `bkl chat --once`
+- [x] add `AgentLoop` with bounded `max_agent_steps`
+- [x] add deterministic Action Registry skeleton: run Skill, list Skills, list Tools
+- [ ] expand Action Registry: import, validate, configure, explain trace
+- [x] add `bkl chat`
+- [x] add `bkl chat --once`
 - [ ] add safe management actions: configure model, import Tool, import Skill, validate, run, list catalog
 - [ ] use deterministic code paths for writes
 - [ ] require confirmation before file writes or destructive changes
 - [ ] persist chat session trace
-- [ ] expose equivalent `/chat/messages` API
+- [x] expose equivalent `/chat/messages` API
 
 Acceptance:
 
 - [ ] user can ask to import a Tool by path
 - [ ] user can ask to import a Skill by path
-- [ ] user can ask to run a registered Skill with natural language input
-- [ ] user can run a Skill through `scene_id -> skill_id`
-- [ ] missing required input fields trigger a follow-up question
+- [x] user can ask to run a registered Skill with natural language input
+- [x] user can run a Skill through `scene_id -> skill_id`
+- [x] missing required input fields trigger a follow-up question
 - [ ] chat actions are recorded in trace
 - [ ] unsafe writes require confirmation
 

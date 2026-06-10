@@ -23,6 +23,7 @@
 bkl_engine/engine.py
 bkl_engine/cli/main.py
 bkl_engine/api/main.py
+bkl_engine/agents/*
 bkl_engine/core/schemas.py
 bkl_engine/core/config.py
 bkl_engine/skills/loader.py
@@ -85,6 +86,7 @@ bkl_engine/
   core/
   cli/
   api/
+  agents/
   models/
   skills/
   tools/
@@ -140,7 +142,53 @@ load_catalog()
   从 .bkl/catalog.json 恢复已注册 Tool / Skill。
 ```
 
-### 3.2 `core/`
+### 3.2 `agents/`
+
+Agent 编排层，负责把自然语言或场景请求转成受控的 SkillEngine 调用。
+
+```text
+agents/schemas.py
+  AgentResponse、RouteDecision、InputResolution、AgentSession、AgentTurn 等数据结构。
+
+agents/scene_mapping.py
+  scene_id -> skill_id + defaults 的确定性映射。
+
+agents/router.py
+  SkillRouter：根据自然语言从已注册 Skill 中选出候选 skill_id。
+
+agents/resolver.py
+  InputResolver：根据 input.schema.json、scene defaults 和用户文本生成 input draft。
+
+agents/actions.py
+  ActionRegistry：确定性执行 Agent 动作；当前支持 run Skill、list Skills、list Tools。
+
+agents/confirmation.py
+  ConfirmationPolicy：写入类动作的确认策略边界。
+
+agents/loop.py
+  AgentLoop：串联 route、resolve、act，作为 bkl chat 和 /chat/messages 的核心。
+```
+
+当前 Agent 层已经支持：
+
+```text
+自然语言 -> Skill Router -> Input Resolver -> SkillEngine.run_skill
+scene_id -> skill_id + defaults -> SkillEngine.run_skill
+缺少 required input 字段时返回 needs_input
+bkl chat --once
+POST /chat/messages
+```
+
+尚未实现：
+
+```text
+自然语言导入 Tool / Skill
+配置模型的管理动作
+Agent session 持久化
+Agent turn trace 持久化
+```
+
+### 3.3 `core/`
 
 共享基础类型和配置。
 

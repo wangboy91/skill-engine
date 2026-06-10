@@ -1,8 +1,32 @@
 # BKL Agent Runtime Engineering Plan
 
-Status: proposed for the next v0.1 iteration.
+Status: first implementation slice landed on 2026-06-10; management actions and session persistence remain pending.
 
 本文定义 BKL 下一阶段如何工程化实现 Agent 能力。核心结论是：BKL 需要同时保留“显式指定 Skill 执行”和“自然语言/场景驱动 Agent 执行”两种能力，但它们必须复用同一个 `SkillEngine`，不能做两套运行时。
+
+当前已实现的第一版闭环：
+
+```text
+bkl_engine/agents/
+  Agent schemas
+  SceneMapping
+  SkillRouter
+  InputResolver
+  ActionRegistry skeleton
+  AgentLoop
+
+bkl chat --once
+POST /chat/messages
+```
+
+当前仍未实现：
+
+```text
+自然语言导入 Tool / Skill
+配置模型等写入类管理动作
+Agent session 持久化
+Agent turn trace 持久化
+```
 
 ## 1. Two Execution Modes
 

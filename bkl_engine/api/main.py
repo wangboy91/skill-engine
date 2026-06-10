@@ -5,6 +5,7 @@ from typing import Any, Literal, cast
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from bkl_engine.agents.loop import AgentLoop
 from bkl_engine.core.errors import BklEngineError
 from bkl_engine.engine import SkillEngine
 
@@ -17,6 +18,15 @@ class RunSkillRequest(BaseModel):
     input: dict[str, object]
     context: dict[str, object] = Field(default_factory=dict)
     mode: Literal["sync"] = "sync"
+
+
+class ChatMessageRequest(BaseModel):
+    session_id: str | None = None
+    message: str
+    scene_id: str | None = None
+    skill_id: str | None = None
+    input: dict[str, object] = Field(default_factory=dict)
+    confirm: bool = False
 
 
 def create_app(engine: SkillEngine | None = None) -> FastAPI:
@@ -76,6 +86,22 @@ def create_app(engine: SkillEngine | None = None) -> FastAPI:
         try:
             run = await _engine(api).run_skill(skill_id, request.input)
             return run.model_dump(mode="json")
+        except BklEngineError as exc:
+            raise HTTPException(status_code=400, detail=exc.message) from exc
+
+    @api.post("/chat/messages")
+    async def chat_message(request: ChatMessageRequest) -> dict[str, Any]:
+        try:
+            loop = AgentLoop(_engine(api))
+            response = await loop.handle_message(
+                request.message,
+                session_id=request.session_id,
+                scene_id=request.scene_id,
+                skill_id=request.skill_id,
+                input_data=request.input,
+                confirm=request.confirm,
+            )
+            return response.model_dump(mode="json")
         except BklEngineError as exc:
             raise HTTPException(status_code=400, detail=exc.message) from exc
 

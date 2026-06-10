@@ -11,6 +11,7 @@ import yaml
 from rich.console import Console
 
 from bkl_engine import __version__
+from bkl_engine.agents.loop import AgentLoop
 from bkl_engine.core.schemas import ToolExecutionContext
 from bkl_engine.engine import SkillEngine
 from bkl_engine.skills.loader import load_skill
@@ -135,6 +136,58 @@ def serve(
     engine = SkillEngine.load(config, catalog_path=catalog)
     api = create_app(engine)
     uvicorn.run(api, host=host, port=port, reload=reload)
+
+
+@app.command("chat")
+def chat(
+    once: Annotated[
+        str | None,
+        typer.Option(help="Run one natural-language Agent turn and exit."),
+    ] = None,
+    scene: Annotated[str | None, typer.Option(help="Scene id to route deterministically.")] = None,
+    skill: Annotated[str | None, typer.Option(help="Explicit skill id to run.")] = None,
+    input_json: Annotated[
+        Path | None,
+        typer.Option("--input", help="Optional JSON input draft."),
+    ] = None,
+    skills_dir: Annotated[Path, typer.Option(help="Directory containing Skill packages.")] = (
+        Path("examples/skills")
+    ),
+    tools_dir: Annotated[Path, typer.Option(help="Directory containing Tool packages.")] = (
+        Path("examples/tools")
+    ),
+    config: Annotated[Path | None, typer.Option(help="Config file to load.")] = None,
+    output: Annotated[str, typer.Option(help="Output format: table or json.")] = "table",
+) -> None:
+    """Run the Agent orchestration layer."""
+
+    engine = SkillEngine.load(config) if config is not None else SkillEngine.create_for_testing()
+    _register_all(engine, tools_dir=tools_dir, skills_dir=skills_dir)
+    loop = AgentLoop(engine)
+    input_data = _read_json(input_json) if input_json is not None else None
+
+    if once is not None:
+        response = asyncio.run(
+            loop.handle_message(
+                once,
+                scene_id=scene,
+                skill_id=skill,
+                input_data=input_data,
+            )
+        )
+        if output == "json":
+            typer.echo(json.dumps(response.model_dump(mode="json"), ensure_ascii=False))
+        else:
+            console.print(response.model_dump(mode="json"))
+        return
+
+    console.print("bkl chat interactive mode. Type 'exit' to quit.")
+    while True:
+        message = typer.prompt("bkl")
+        if message.strip().lower() in {"exit", "quit"}:
+            return
+        response = asyncio.run(loop.handle_message(message, scene_id=scene, skill_id=skill))
+        console.print(response.model_dump(mode="json"))
 
 
 @tool_app.command("register")

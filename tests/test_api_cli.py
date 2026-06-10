@@ -125,3 +125,47 @@ def test_fastapi_registers_and_runs_skill(tmp_path: Path) -> None:
     trace_response = client.get(f"/runs/{run_payload['run_id']}/trace")
     assert trace_response.status_code == 200
     assert any(event["type"] == "tool_succeeded" for event in trace_response.json())
+
+
+def test_cli_chat_once_runs_skill_from_natural_language() -> None:
+    result = CliRunner().invoke(
+        cli_app,
+        [
+            "chat",
+            "--once",
+            "帮我生成60秒小红书口播视频，主题是程序员护眼台灯",
+            "--skills-dir",
+            "examples/skills",
+            "--tools-dir",
+            "examples/tools",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "completed"
+    assert payload["route_decision"]["skill_id"] == "talking_video"
+    assert payload["output"]["subtitle_path"] == "subtitle.srt"
+
+
+def test_fastapi_chat_messages_runs_registered_skill(tmp_path: Path) -> None:
+    engine = SkillEngine.create_for_testing(artifact_root=tmp_path)
+    client = TestClient(create_app(engine))
+
+    client.post("/tools/register", json={"path": "examples/tools/subtitle_generate_srt"})
+    client.post("/skills/register", json={"path": "examples/skills/talking_video"})
+
+    response = client.post(
+        "/chat/messages",
+        json={
+            "message": "帮我生成60秒小红书口播视频，主题是程序员护眼台灯",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "completed"
+    assert payload["route_decision"]["skill_id"] == "talking_video"
+    assert payload["run_ids"]
