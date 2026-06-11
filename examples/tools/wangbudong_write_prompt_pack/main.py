@@ -2,20 +2,28 @@
 
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
 
+BREAKDOWN_FILE = "00-\u5b9e\u9a8c\u62c6\u89e3.md"
+COVER_FILE = "01-\u9996\u56fe\u63d0\u793a\u8bcd.md"
+STEP_FILE = "02-\u5206\u6b65\u9aa4\u63d0\u793a\u8bcd.md"
+COPY_FILE = "03-\u5c0f\u7ea2\u4e66\u6587\u6848.md"
+OPERATIONS_FILE = "04-\u53d1\u5e03\u8fd0\u8425\u5361.md"
+
+
 def main() -> None:
-    payload = json.loads(input())
+    payload = json.loads(sys.stdin.buffer.read().decode("utf-8"))
     artifact_dir = Path(os.environ["BKL_ARTIFACT_DIR"])
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
     title = str(payload["experiment_title"])
     materials = [str(item) for item in payload["materials"]]
     phenomenon = str(payload["target_phenomenon"])
-    age_range = str(payload.get("age_range") or "3-8岁")
-    content_lane = str(payload.get("content_lane") or "趣味引流")
+    age_range = str(payload.get("age_range") or "3-8\u5c81")
+    content_lane = str(payload.get("content_lane") or "\u8da3\u5473\u5f15\u6d41")
     include_operations_card = bool(payload.get("include_operations_card", False))
 
     feasibility_summary = _feasibility_summary(title, materials, phenomenon)
@@ -24,8 +32,8 @@ def main() -> None:
     xiaohongshu_copy = _xiaohongshu_copy(title, materials, phenomenon, age_range)
     safety_notes = _safety_notes(materials)
 
-    files: dict[str, str] = {
-        "00-实验拆解.md": _breakdown(
+    files = {
+        BREAKDOWN_FILE: _breakdown(
             title,
             materials,
             phenomenon,
@@ -34,12 +42,12 @@ def main() -> None:
             feasibility_summary,
             safety_notes,
         ),
-        "01-首图提示词.md": cover_prompt,
-        "02-分步骤提示词.md": step_prompts,
-        "03-小红书文案.md": xiaohongshu_copy,
+        COVER_FILE: cover_prompt,
+        STEP_FILE: step_prompts,
+        COPY_FILE: xiaohongshu_copy,
     }
     if include_operations_card:
-        files["04-发布运营卡.md"] = _operations_card(title, content_lane, age_range)
+        files[OPERATIONS_FILE] = _operations_card(title, content_lane, age_range)
 
     for filename, content in files.items():
         (artifact_dir / filename).write_text(content, encoding="utf-8")
@@ -50,18 +58,20 @@ def main() -> None:
         "files": list(files),
         "feasibility_summary": feasibility_summary,
         "cover_prompt": cover_prompt,
-        "step_prompt_count": step_prompts.count("## 第"),
+        "step_prompt_count": step_prompts.count("## \u7b2c"),
         "xiaohongshu_copy": xiaohongshu_copy,
         "safety_notes": safety_notes,
     }
-    print(json.dumps(result, ensure_ascii=False))
+    sys.stdout.buffer.write(json.dumps(result, ensure_ascii=False).encode("utf-8") + b"\n")
 
 
 def _feasibility_summary(title: str, materials: list[str], phenomenon: str) -> str:
-    material_text = "、".join(materials)
+    material_text = "\u3001".join(materials)
     return (
-        f"{title}采用家庭低风险材料：{material_text}。目标现象是{phenomenon}。"
-        "材料能支撑观察型亲子科学实验，需保持装置真实、步骤简短、现象可见。"
+        f"{title}\u4f7f\u7528\u6750\u6599\uff1a{material_text}\u3002"
+        f"\u76ee\u6807\u73b0\u8c61\u662f\uff1a{phenomenon}\u3002"
+        "\u6750\u6599\u8db3\u4ee5\u652f\u6491\u4e00\u4e2a\u53ef\u89c2\u5bdf\u3001"
+        "\u53ef\u590d\u505a\u7684\u4eb2\u5b50\u79d1\u5b66\u5b9e\u9a8c\u3002"
     )
 
 
@@ -77,54 +87,35 @@ def _breakdown(
     safety_text = (
         "\n".join(f"- {note}" for note in safety_notes)
         if safety_notes
-        else "- 低风险实验，建议家长陪同观察。"
+        else "- \u4f4e\u98ce\u9669\u5b9e\u9a8c\uff0c\u5efa\u8bae\u5bb6\u957f\u966a\u540c\u89c2\u5bdf\u3002"
     )
+    material_lines = "\n".join(f"- {material}" for material in materials)
     return "\n".join(
         [
-            f"# {title} 实验拆解",
+            f"# {title} \u5b9e\u9a8c\u62c6\u89e3",
             "",
-            "## 实验定位",
-            f"- 内容栏目：{content_lane}",
-            f"- 适合年龄：{age_range}",
-            "- 难度：低",
-            "- 成本：低",
+            "## \u5b9e\u9a8c\u5b9a\u4f4d",
+            f"- \u5185\u5bb9\u680f\u76ee\uff1a{content_lane}",
+            f"- \u9002\u5408\u5e74\u9f84\uff1a{age_range}",
             "",
-            "## 实验合理性论证",
-            f"- 目标现象：{phenomenon}",
-            "- 动力来源：材料接触、液体表面变化或可观察的物理/化学过程。",
-            "- 传动/约束结构：使用真实容器和材料，不添加虚构管道、机关或魔法效果。",
-            f"- 原材料是否足够：{feasibility_summary}",
-            "- 需要补充或修正：如材料不完整，只补充最低风险的家庭常见材料。",
-            "- 最终采用装置：桌面真实实验装置，家长辅助，孩子观察。",
-            "- 排除的错误版本：不画成危险加热、密封反应、夸张爆炸或不真实机关。",
+            "## \u5b9e\u9a8c\u5408\u7406\u6027\u8bba\u8bc1",
+            f"- \u76ee\u6807\u73b0\u8c61\uff1a{phenomenon}",
+            f"- \u53ef\u884c\u6027\uff1a{feasibility_summary}",
+            "- \u6700\u7ec8\u88c5\u7f6e\uff1a\u684c\u9762\u771f\u5b9e\u5b9e\u9a8c\u88c5\u7f6e\uff0c\u6210\u4eba\u8f85\u52a9\uff0c\u5b69\u5b50\u89c2\u5bdf\u3002",
             "",
-            "## 材料",
-            *[f"- {material}" for material in materials],
+            "## \u6750\u6599",
+            material_lines,
             "",
-            "## 步骤",
-            "1. 摆好材料，确认容器稳定。",
-            "2. 按顺序加入材料，保留孩子能观察的关键动作。",
-            "3. 引导孩子描述看到的变化。",
-            "4. 记录成功条件和容易失败的变量。",
+            "## \u6b65\u9aa4",
+            "1. \u6446\u597d\u6750\u6599\uff0c\u786e\u8ba4\u5bb9\u5668\u7a33\u5b9a\u3002",
+            "2. \u6309\u987a\u5e8f\u52a0\u5165\u6750\u6599\uff0c\u4fdd\u7559\u5b69\u5b50\u80fd\u89c2\u5bdf\u7684\u5173\u952e\u52a8\u4f5c\u3002",
+            "3. \u5f15\u5bfc\u5b69\u5b50\u63cf\u8ff0\u770b\u5230\u7684\u53d8\u5316\u3002",
+            "4. \u8bb0\u5f55\u6210\u529f\u6761\u4ef6\u548c\u5bb9\u6613\u5931\u8d25\u7684\u53d8\u91cf\u3002",
             "",
-            "## 观察现象",
+            "## \u89c2\u5bdf\u73b0\u8c61",
             f"- {phenomenon}",
             "",
-            "## 原理解释",
-            "- 用儿童能理解的语言解释可见变化，不把隐形作用画成真实零件。",
-            "",
-            "## 常见翻车点",
-            "- 材料比例过多或过少：先少量测试。",
-            "- 动作太快：关键步骤要慢慢做。",
-            "- 画面不真实：提示词里明确真实装置和错误排除。",
-            "",
-            "## 真实装置校验",
-            "- 真实摆放：材料在桌面或浅盘中，容器开口方向清楚。",
-            f"- 真实现象：{phenomenon}",
-            "- 不要画成：密封爆炸、火焰、虚构管道、魔法特效。",
-            "- 准确原理：只解释观察到的真实变化。",
-            "",
-            "## 安全和制作提示",
+            "## \u5b89\u5168\u548c\u5236\u4f5c\u63d0\u793a",
             safety_text,
             "",
         ]
@@ -138,73 +129,42 @@ def _cover_prompt(
     age_range: str,
     content_lane: str,
 ) -> str:
-    material_text = "、".join(materials)
+    material_text = "\u3001".join(materials)
     return "\n".join(
         [
-            "# 首图提示词",
-            "",
-            "## 画面目标",
-            f"小红书首图，突出「{title}」的最终可见效果，适合{age_range}亲子科学启蒙。",
-            "",
-            "## 生成提示词",
-            (
-                "1086x1448竖版中文亲子科学启蒙信息图，温暖白底，手绘水彩贴纸风，"
-                "顶部左上角小号亮宝蓝品牌贴纸「王不懂的小实验」，主标题"
-                f"「{title}」，黄色丝带副标题「家里材料看见科学变化」，"
-                f"主画面展示{material_text}和{phenomenon}，画面标签包含「{content_lane}」"
-                "「低成本」「可复做」。"
-            ),
-            (
-                "配色要求：品牌贴纸和标签使用高饱和亮宝蓝，暖白底，极浅清透水蓝面板，"
-                "柠檬黄丝带，软粉观察框；主色取自真实材料，现象强调色使用清爽亮色，"
-                "不要灰蓝、牛仔蓝、雾霾蓝。"
-            ),
-            (
-                "科学真实性要求：只展示真实可操作的桌面实验装置，材料摆放和观察结果要一致，"
-                "不要添加虚构管道、密封爆炸、火焰或魔法特效。"
-            ),
-            "",
-            "## 负面提示词",
-            "不要英文文字，不要二维码，不要外部水印，不要第三方logo，不要错别字，不要文字重叠，不要危险儿童操作，不要灰暗低饱和配色。",
-            "",
+            "# \u9996\u56fe\u63d0\u793a\u8bcd",
+            f"1086x1448 \u7ad6\u7248\u4e2d\u6587\u4eb2\u5b50\u79d1\u5b66\u542f\u8499\u4fe1\u606f\u56fe\uff0c\u4e3b\u6807\u9898\u300a{title}\u300b\u3002",
+            f"\u6750\u6599\uff1a{material_text}\u3002\u76ee\u6807\u73b0\u8c61\uff1a{phenomenon}\u3002",
+            f"\u9002\u5408\u5e74\u9f84\uff1a{age_range}\u3002\u680f\u76ee\u7c7b\u578b\uff1a{content_lane}\u3002",
+            "\u914d\u8272\u8981\u6c42\uff1a\u6696\u767d\u5e95\u3001\u4eae\u5b9d\u84dd\u6807\u7b7e\u3001\u67e0\u6aac\u9ec4\u63d0\u793a\u6761\u3001\u8f6f\u7c89\u89c2\u5bdf\u6846\u3002",
+            "\u79d1\u5b66\u771f\u5b9e\u6027\u8981\u6c42\uff1a\u53ea\u5c55\u793a\u771f\u5b9e\u53ef\u64cd\u4f5c\u7684\u684c\u9762\u5b9e\u9a8c\u88c5\u7f6e\u3002",
+            "\u8d1f\u9762\u63d0\u793a\u8bcd\uff1a\u9519\u522b\u5b57\u3001\u4e8c\u7ef4\u7801\u3001\u5916\u90e8\u6c34\u5370\u3001\u5371\u9669\u513f\u7ae5\u64cd\u4f5c\u3002",
         ]
     )
 
 
 def _step_prompts(title: str, materials: list[str], phenomenon: str) -> str:
-    material_text = "、".join(materials)
+    material_text = "\u3001".join(materials)
     pages = [
-        ("准备材料", f"展示{material_text}，每个材料有清晰中文标签。"),
-        ("开始操作", "展示成人手部进行关键动作，孩子只在旁边观察。"),
-        ("观察变化", f"突出{phenomenon}，用箭头和短标签标注变化方向。"),
-        ("为什么会这样", "用三格图解释原理，语言短、可读、适合亲子讲解。"),
-        ("翻车排查", "展示三个常见失败原因：比例不对、动作太快、材料摆放不稳。"),
+        ("\u51c6\u5907\u6750\u6599", f"\u5c55\u793a {material_text}\uff0c\u6bcf\u4e2a\u6750\u6599\u6709\u6e05\u6670\u4e2d\u6587\u6807\u7b7e\u3002"),
+        ("\u5f00\u59cb\u64cd\u4f5c", "\u5c55\u793a\u6210\u4eba\u624b\u90e8\u8fdb\u884c\u5173\u952e\u52a8\u4f5c\uff0c\u5b69\u5b50\u5728\u65c1\u8fb9\u89c2\u5bdf\u3002"),
+        ("\u89c2\u5bdf\u53d8\u5316", f"\u7a81\u51fa {phenomenon}\uff0c\u7528\u7bad\u5934\u6807\u6ce8\u53d8\u5316\u65b9\u5411\u3002"),
+        ("\u4e3a\u4ec0\u4e48\u4f1a\u8fd9\u6837", "\u7528\u4e09\u683c\u56fe\u89e3\u91ca\u539f\u7406\uff0c\u8bed\u8a00\u77ed\u3001\u53ef\u8bfb\u3002"),
+        ("\u7ffb\u8f66\u6392\u67e5", "\u5c55\u793a\u6bd4\u4f8b\u4e0d\u5bf9\u3001\u52a8\u4f5c\u592a\u5feb\u3001\u6750\u6599\u6446\u653e\u4e0d\u7a33\u4e09\u4e2a\u5e38\u89c1\u539f\u56e0\u3002"),
     ]
-    blocks = []
+    blocks: list[str] = []
     for index, (page_title, target) in enumerate(pages, start=1):
         blocks.extend(
             [
-                f"## 第 {index} 张：{page_title}",
+                f"## \u7b2c {index} \u5f20\uff1a{page_title}",
                 "",
-                "### 画面目标",
+                "### \u753b\u9762\u76ee\u6807",
                 target,
                 "",
-                "### 生成提示词",
-                (
-                    f"1086x1448竖版中文亲子科学启蒙信息图，「王不懂的小实验」小号亮宝蓝左上角贴纸，"
-                    f"页面标题「{title}｜{page_title}」，{target}"
-                ),
-                (
-                    "配色要求：亮宝蓝标签、暖白底、浅水蓝分区、柠檬黄提示条、软粉观察框，"
-                    "材料保持真实颜色，整体清爽不拥挤。"
-                ),
-                (
-                    f"科学真实性要求：本页仍然使用同一套{title}真实装置，现象必须是{phenomenon}，"
-                    "不要切换成其他实验版本。"
-                ),
-                "",
-                "### 负面提示词",
-                "不要英文文字，不要二维码，不要外部水印，不要错别字，不要虚构机关，不要危险儿童操作。",
+                "### \u751f\u6210\u63d0\u793a\u8bcd",
+                f"1086x1448 \u7ad6\u7248\u4e2d\u6587\u4fe1\u606f\u56fe\uff0c\u300a{title}\u300b\u540c\u4e00\u5957\u771f\u5b9e\u88c5\u7f6e\u3002{target}",
+                "\u914d\u8272\u8981\u6c42\uff1a\u6696\u767d\u5e95\u3001\u6d45\u6c34\u84dd\u5206\u533a\u3001\u4eae\u5b9d\u84dd\u6807\u7b7e\u3002",
+                f"\u79d1\u5b66\u771f\u5b9e\u6027\u8981\u6c42\uff1a\u73b0\u8c61\u5fc5\u987b\u662f {phenomenon}\u3002",
                 "",
             ]
         )
@@ -217,26 +177,16 @@ def _xiaohongshu_copy(
     phenomenon: str,
     age_range: str,
 ) -> str:
-    material_text = "、".join(materials)
+    material_text = "\u3001".join(materials)
     return "\n".join(
         [
-            f"✨{title}｜{age_range}在家也能观察的小实验",
+            f"{title} | {age_range} \u5728\u5bb6\u4e5f\u80fd\u89c2\u5bdf\u7684\u5c0f\u5b9e\u9a8c",
             "",
-            f"今天用{material_text}，带孩子看见：{phenomenon}。",
+            f"\u4eca\u5929\u7528 {material_text}\uff0c\u5e26\u5b69\u5b50\u770b\u89c1\uff1a{phenomenon}\u3002",
             "",
-            "🧪玩法很简单：",
-            "① 先把材料摆在桌面上，让孩子猜会发生什么",
-            "② 家长慢慢完成关键动作",
-            "③ 让孩子描述看到的颜色、方向和速度变化",
+            "\u73a9\u6cd5\u5f88\u7b80\u5355\uff1a\u5148\u8ba9\u5b69\u5b50\u731c\u4e00\u731c\uff0c\u518d\u7531\u5bb6\u957f\u5b8c\u6210\u5173\u952e\u52a8\u4f5c\u3002",
             "",
-            "👀可以问孩子：",
-            "如果材料多一点，会不会变化更明显？",
-            "如果动作慢一点，结果会不会不同？",
-            "",
-            "💬想要步骤卡，评论「步骤卡」",
-            "",
-            "#亲子科学 #幼儿科学启蒙 #在家做实验 #低成本实验 #王不懂的小实验",
-            "",
+            "#\u4eb2\u5b50\u79d1\u5b66 #\u5e7c\u513f\u79d1\u5b66\u542f\u8499 #\u5728\u5bb6\u505a\u5b9e\u9a8c #\u738b\u4e0d\u61c2\u7684\u5c0f\u5b9e\u9a8c",
         ]
     )
 
@@ -244,22 +194,19 @@ def _xiaohongshu_copy(
 def _operations_card(title: str, content_lane: str, age_range: str) -> str:
     return "\n".join(
         [
-            f"# {title} 发布运营卡",
+            f"# {title} \u53d1\u5e03\u8fd0\u8425\u5361",
             "",
-            f"- 栏目：{content_lane}",
-            f"- 年龄：{age_range}",
-            "- 封面策略：结果优先，材料低成本标签辅助。",
-            "- 评论关键词：步骤卡",
-            "- 复盘指标：封面点击、收藏、关键词评论。",
-            "",
+            f"- \u680f\u76ee\uff1a{content_lane}",
+            f"- \u5e74\u9f84\uff1a{age_range}",
+            "- \u8bc4\u8bba\u5173\u952e\u8bcd\uff1a\u6b65\u9aa4\u5361",
         ]
     )
 
 
 def _safety_notes(materials: list[str]) -> list[str]:
-    risky_keywords = {"火", "酒精", "玻璃", "刀", "热水", "打孔"}
+    risky_keywords = {"\u706b", "\u9152\u7cbe", "\u73bb\u7483", "\u5200", "\u70ed\u6c34", "\u6253\u5b54"}
     if any(any(keyword in material for keyword in risky_keywords) for material in materials):
-        return ["涉及潜在风险材料，必须由成人操作危险步骤。"]
+        return ["\u6d89\u53ca\u6f5c\u5728\u98ce\u9669\u6750\u6599\uff0c\u5fc5\u987b\u7531\u6210\u4eba\u64cd\u4f5c\u5371\u9669\u6b65\u9aa4\u3002"]
     return []
 
 
