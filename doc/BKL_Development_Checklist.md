@@ -4,6 +4,10 @@ Status: active development checklist for v0.1.
 
 This checklist turns the technical spec and installation-form decision into implementation order. The rule is to keep one Core Engine and make CLI, API, SDK, and future Desktop reuse it.
 
+Target business-agent architecture: [BKL Business Agent Base Architecture](BKL_Business_Agent_Base_Architecture.md).
+
+Architecture hardening roadmap: [BKL Business Agent Base Roadmap](BKL_Business_Agent_Base_Roadmap.md).
+
 ## 1. P0 Completed Baseline
 
 - [x] Python package skeleton with `pyproject.toml`
@@ -59,7 +63,7 @@ Goal: support both direct Skill execution and Agent-orchestrated execution witho
 
 Design reference: [BKL Agent Runtime Engineering Plan](BKL_Agent_Runtime_Engineering.md).
 
-- [x] add `bkl_engine/agents/` package
+- [x] add Agent runtime packages under `domain/agent/` and `application/agent/`
 - [x] add Agent schemas: session, turn, route decision, action plan, action result
 - [x] add Scene Mapping: `scene_id -> skill_id + defaults`
 - [x] add Skill Router: natural language request -> candidate `skill_id`
@@ -88,7 +92,43 @@ Acceptance:
 - [ ] chat actions are recorded in trace
 - [ ] unsafe writes require confirmation
 
-## 4. Server Deployment Iteration
+## 4. Architecture Hardening Iteration
+
+Goal: make the codebase structurally ready for business agents, multi-agent orchestration, local software, cloud SaaS, and private deployments.
+
+Design reference: [BKL Business Agent Base Architecture](BKL_Business_Agent_Base_Architecture.md) and [BKL Business Agent Base Roadmap](BKL_Business_Agent_Base_Roadmap.md).
+
+- [x] create initial DDD package boundaries: `domain/`, `application/`, `infrastructure/`, `interfaces/`
+- [x] add first application ports for RunStore, TraceStore, ArtifactStore
+- [ ] define remaining ports for AgentSessionStore, PolicyEngine, SecretStore, MemoryStore, KnowledgeRetriever, EventBus
+- [x] keep `SkillEngine` as the stable public facade during migration
+- [x] migrate Agent schemas, scene mapping, routing, input resolution, actions, confirmation, and loop to DDD canonical paths
+- [x] migrate Skill runtime to application-layer canonical path
+- [x] migrate Tool executor to application-layer canonical path
+- [x] migrate Skill/Tool package loaders, OpenAPI importer, Python Tool runner, and API Tool runner to infrastructure canonical paths
+- [x] migrate in-memory registries, persistence stores, and trace store to infrastructure canonical paths
+- [x] move Skill, Tool, Execution, and Model DTOs to domain canonical paths while keeping `core.schemas` compatibility exports
+- [x] migrate CLI and HTTP adapters to `interfaces/cli` and `interfaces/http` while keeping legacy `cli/` and `api/` compatibility modules
+- [x] keep legacy `agents/`, `skills/`, and `tools/` imports as compatibility adapters only
+- [x] wire PolicyEngine into ToolExecutor before Python/API Tool execution
+- [ ] stop Python Tool from inheriting unrestricted environment variables by default
+- [ ] add durable local run/trace/artifact metadata storage
+- [ ] add Agent session and turn persistence
+- [x] add explicit AgentTurnState and ExecutionState enums as state-machine anchors
+- [ ] convert AgentLoop into an explicit state machine
+- [x] record `tool_policy_checked` and `tool_failed` trace events
+- [ ] add trace parent-child span ids for agent turn -> action -> skill run -> model turn -> tool call -> artifact
+- [ ] add Memory/RAG ports without making RAG mandatory for every Skill
+
+Acceptance:
+
+- [ ] existing CLI/API/SDK behavior remains compatible
+- [ ] all write or risky actions have deterministic policy decisions
+- [ ] run and trace survive restart in local mode
+- [ ] Agent confirmation can pause and resume from persisted state
+- [ ] multi-agent design can be implemented through task/mailbox/event ports instead of ad hoc direct calls
+
+## 5. Server Deployment Iteration
 
 Goal: make `bkl serve` usable by other services beyond local testing.
 
@@ -107,7 +147,7 @@ Acceptance:
 - [ ] unauthenticated requests are rejected when auth is enabled
 - [ ] run and trace survive process restart
 
-## 5. Desktop / Local GUI Iteration
+## 6. Desktop / Local GUI Iteration
 
 Goal: make a local user interface without creating a second engine.
 
@@ -127,7 +167,7 @@ Acceptance:
 - [ ] GUI registers Tools and Skills through the same API
 - [ ] GUI runs Skills and displays trace/artifacts
 
-## 6. Built-in Skill Packs
+## 7. Built-in Skill Packs
 
 Goal: ship useful starter packs without hardcoding product-specific behavior into the engine.
 
@@ -146,7 +186,7 @@ Acceptance:
 - [ ] users can disable or remove built-in packs
 - [ ] built-in packs are documented as examples, not engine internals
 
-## 7. Quality Gates
+## 8. Quality Gates
 
 Every implementation iteration must pass:
 

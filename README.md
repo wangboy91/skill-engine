@@ -32,6 +32,10 @@ BKL 只维护一个 Core Engine，按使用场景提供不同入口：
 
 Skill、Tool、模型配置在所有形态下保持同一套规范。
 
+业务智能体基座目标架构见 [BKL Business Agent Base Architecture](doc/BKL_Business_Agent_Base_Architecture.md)。
+
+业务智能体基座迭代路线见 [BKL Business Agent Base Roadmap](doc/BKL_Business_Agent_Base_Roadmap.md)。
+
 详细架构决策见 [BKL Core Engine Installation Forms](doc/BKL_Core_Engine_Installation_Forms.md)。
 
 Skill 运行请求和路由选择见 [BKL Skill Run Request and Routing](doc/BKL_Skill_Run_Request_and_Routing.md)。
@@ -321,6 +325,10 @@ BKL keeps one Core Engine and exposes different entrypoints for different deploy
 - **Desktop / Local GUI**: a future local UI can start `bkl serve` locally and manage models, Tools, Skills, and runs through HTTP
 
 Skill, Tool, and model configuration formats stay the same across all forms.
+
+See [BKL Business Agent Base Architecture](doc/BKL_Business_Agent_Base_Architecture.md) for the target DDD architecture.
+
+See [BKL Business Agent Base Roadmap](doc/BKL_Business_Agent_Base_Roadmap.md) for the architecture hardening roadmap.
 
 See [BKL Core Engine Installation Forms](doc/BKL_Core_Engine_Installation_Forms.md) for the detailed architecture decision.
 

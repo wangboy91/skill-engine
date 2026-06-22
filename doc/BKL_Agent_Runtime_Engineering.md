@@ -7,9 +7,10 @@ Status: first implementation slice landed on 2026-06-10; management actions and 
 当前已实现的第一版闭环：
 
 ```text
-bkl_engine/agents/
-  Agent schemas
-  SceneMapping
+bkl_engine/domain/agent/
+  Agent schemas and SceneMapping
+
+bkl_engine/application/agent/
   SkillRouter
   InputResolver
   ActionRegistry skeleton
@@ -496,56 +497,83 @@ POST /chat/messages
 }
 ```
 
-## 11. Proposed Source Layout
+## 11. Current Source Layout
 
-建议新增：
+当前 DDD canonical layout：
+
+```text
+bkl_engine/domain/agent/
+  __init__.py
+  schemas.py
+  scene_mapping.py
+  states.py
+
+bkl_engine/application/agent/
+  __init__.py
+  commands.py
+  handle_message.py
+  state_machine.py
+  router.py
+  input_resolver.py
+  actions.py
+  confirmation.py
+
+bkl_engine/agents/
+  legacy compatibility adapters only
+```
+
+后续需要新增：
+
+```text
+bkl_engine/application/agent/
+  session_store.py
+```
+
+历史旧布局如下，已迁移为兼容 adapter：
 
 ```text
 bkl_engine/agents/
-  __init__.py
-  schemas.py
   loop.py
   router.py
   resolver.py
   actions.py
   scene_mapping.py
-  session_store.py
   confirmation.py
 ```
 
 职责：
 
 ```text
-schemas.py
+domain/agent/schemas.py
   AgentMessage、AgentSession、AgentTurn、RouteDecision、ActionPlan。
 
-loop.py
+application/agent/state_machine.py
   AgentLoop 主状态机。
 
-router.py
+application/agent/router.py
   SkillRouter：自然语言请求 -> 候选 Skill / action。
 
-resolver.py
+application/agent/input_resolver.py
   InputResolver：自然语言 + schema -> input JSON / missing fields。
 
-actions.py
+application/agent/actions.py
   确定性 action registry，所有写操作走这里。
 
-scene_mapping.py
+domain/agent/scene_mapping.py
   scene_id -> skill_id + defaults。
 
-session_store.py
+application/agent/session_store.py
   session 持久化接口和本地 JSON 实现。
 
-confirmation.py
+application/agent/confirmation.py
   代码级确认策略。
 ```
 
 CLI/API 扩展：
 
 ```text
-bkl_engine/cli/chat_commands.py
-bkl_engine/api/routes_chat.py
+bkl_engine/interfaces/cli/chat_commands.py
+bkl_engine/interfaces/http/routes_chat.py
 ```
 
 ## 12. Implementation Order
@@ -554,7 +582,7 @@ bkl_engine/api/routes_chat.py
 
 ### Phase 1: Agent Schemas and Scene Mapping
 
-- 新增 `bkl_engine/agents/schemas.py`
+- 新增 `bkl_engine/domain/agent/schemas.py`
 - 新增 `SceneMapping`
 - 支持从 `bkl.yaml` 或独立 `scenes.yaml` 读取 `scene_id -> skill_id`
 - 测试 scene routing

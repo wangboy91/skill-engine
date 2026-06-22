@@ -1,2 +1,0 @@
-"""Skill-as-tool primitives."""
-

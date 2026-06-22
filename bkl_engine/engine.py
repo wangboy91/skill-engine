@@ -2,17 +2,26 @@
 
 from pathlib import Path
 
-from bkl_engine.core.config import load_engine_config
-from bkl_engine.core.schemas import RunContext, RunResult, Skill, Tool
-from bkl_engine.models.router import MockModelProvider, ModelProvider, ModelRouter
-from bkl_engine.skills.registry import InMemorySkillRegistry
-from bkl_engine.skills.runtime import SkillRuntime
-from bkl_engine.storage.artifact_store import LocalArtifactStore
-from bkl_engine.storage.catalog_store import JsonCatalogStore
-from bkl_engine.storage.repositories import InMemoryRunStore
-from bkl_engine.tools.executor import ToolExecutor
-from bkl_engine.tools.registry import InMemoryToolRegistry
-from bkl_engine.trace.trace_store import InMemoryTraceStore
+from bkl_engine.application.execution import SkillRuntime
+from bkl_engine.application.ports import ToolExecutorPort
+from bkl_engine.application.tool.executor import ToolExecutor
+from bkl_engine.domain.execution import RunContext, RunResult
+from bkl_engine.domain.skill import Skill
+from bkl_engine.domain.tool import Tool
+from bkl_engine.infrastructure.config.engine_config import load_engine_config
+from bkl_engine.infrastructure.model_gateway.router import (
+    MockModelProvider,
+    ModelProvider,
+    ModelRouter,
+)
+from bkl_engine.infrastructure.persistence import (
+    InMemoryRunStore,
+    JsonCatalogStore,
+    LocalArtifactStore,
+)
+from bkl_engine.infrastructure.repositories import InMemorySkillRegistry, InMemoryToolRegistry
+from bkl_engine.infrastructure.tool_runners import ApiToolRunner, PythonToolRunner
+from bkl_engine.infrastructure.tracing import InMemoryTraceStore
 
 
 class SkillEngine:
@@ -21,7 +30,7 @@ class SkillEngine:
         skill_registry: InMemorySkillRegistry,
         tool_registry: InMemoryToolRegistry,
         model_router: ModelRouter,
-        tool_executor: ToolExecutor,
+        tool_executor: ToolExecutorPort,
         trace_store: InMemoryTraceStore,
         artifact_store: LocalArtifactStore,
         run_store: InMemoryRunStore,
@@ -57,7 +66,7 @@ class SkillEngine:
             skill_registry=InMemorySkillRegistry(),
             tool_registry=InMemoryToolRegistry(),
             model_router=ModelRouter.from_config(config),
-            tool_executor=ToolExecutor(),
+            tool_executor=_default_tool_executor(),
             trace_store=InMemoryTraceStore(),
             artifact_store=LocalArtifactStore("data/artifacts"),
             run_store=InMemoryRunStore(),
@@ -71,12 +80,13 @@ class SkillEngine:
         cls,
         artifact_root: str | Path = "data/artifacts",
         model_provider: ModelProvider | None = None,
+        tool_executor: ToolExecutorPort | None = None,
     ) -> "SkillEngine":
         return cls(
             skill_registry=InMemorySkillRegistry(),
             tool_registry=InMemoryToolRegistry(),
             model_router=ModelRouter(model_provider or MockModelProvider()),
-            tool_executor=ToolExecutor(),
+            tool_executor=tool_executor or _default_tool_executor(),
             trace_store=InMemoryTraceStore(),
             artifact_store=LocalArtifactStore(artifact_root),
             run_store=InMemoryRunStore(),
@@ -111,3 +121,10 @@ class SkillEngine:
         context: RunContext | None = None,
     ) -> RunResult:
         return await self.runtime.run_skill(skill_id, input_data, context)
+
+
+def _default_tool_executor() -> ToolExecutor:
+    return ToolExecutor(
+        python_runner=PythonToolRunner(),
+        api_runner=ApiToolRunner(),
+    )

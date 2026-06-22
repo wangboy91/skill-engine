@@ -4,7 +4,7 @@ import yaml
 from typer.testing import CliRunner
 
 from bkl_engine import __version__
-from bkl_engine.cli.main import app
+from bkl_engine.interfaces.cli.main import app
 
 
 def test_package_exposes_version() -> None:
@@ -98,7 +98,7 @@ def test_cli_serve_starts_fastapi_app_with_config(monkeypatch, tmp_path) -> None
         captured["api"] = api
         captured["kwargs"] = kwargs
 
-    monkeypatch.setattr("bkl_engine.cli.main.uvicorn.run", fake_run)
+    monkeypatch.setattr("bkl_engine.interfaces.cli.main.uvicorn.run", fake_run)
 
     result = CliRunner().invoke(
         app,

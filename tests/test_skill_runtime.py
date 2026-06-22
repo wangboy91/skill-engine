@@ -3,9 +3,10 @@ from pathlib import Path
 
 import pytest
 
+from bkl_engine.application.execution.skill_runtime import SkillRuntimeError
+from bkl_engine.domain.model import ModelResponse, ToolCallRequest
 from bkl_engine.engine import SkillEngine
-from bkl_engine.models.router import MockModelProvider, ModelResponse, ToolCallRequest
-from bkl_engine.skills.runtime import SkillRuntimeError
+from bkl_engine.infrastructure.model_gateway.router import MockModelProvider
 
 
 def test_skill_engine_runs_mock_skill_with_python_tool(tmp_path: Path) -> None:

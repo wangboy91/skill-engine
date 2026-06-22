@@ -3,9 +3,11 @@ import json
 
 import httpx
 
-from bkl_engine.core.config import ModelProfileConfig
-from bkl_engine.models.providers.anthropic import AnthropicProvider
-from bkl_engine.models.providers.openai_compatible import OpenAICompatibleProvider
+from bkl_engine.infrastructure.config.engine_config import ModelProfileConfig
+from bkl_engine.infrastructure.model_gateway.providers.anthropic import AnthropicProvider
+from bkl_engine.infrastructure.model_gateway.providers.openai_compatible import (
+    OpenAICompatibleProvider,
+)
 
 
 def test_openai_compatible_provider_posts_chat_completions(monkeypatch) -> None:  # type: ignore[no-untyped-def]

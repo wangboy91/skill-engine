@@ -1,4 +1,4 @@
-from bkl_engine.tools.openapi_importer import import_openapi_tools
+from bkl_engine.infrastructure.package_loaders.openapi_importer import import_openapi_tools
 
 
 def test_openapi_importer_generates_api_tools_from_operations() -> None:

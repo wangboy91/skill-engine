@@ -3,9 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from bkl_engine.core.schemas import ToolExecutionContext
-from bkl_engine.tools.loader import load_tool
-from bkl_engine.tools.python_tool import PythonToolRunner, ToolExecutionError
+from bkl_engine.domain.tool import ToolExecutionContext
+from bkl_engine.infrastructure.package_loaders.tool_loader import load_tool
+from bkl_engine.infrastructure.tool_runners.python_tool import (
+    PythonToolRunner,
+    ToolExecutionError,
+)
 
 
 def test_python_tool_runner_executes_tool_with_json_stdio(tmp_path: Path) -> None:

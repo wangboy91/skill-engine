@@ -1,2 +1,0 @@
-"""Skill prompt rendering primitives."""
-

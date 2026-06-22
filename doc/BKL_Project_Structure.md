@@ -2,6 +2,10 @@
 
 本文是当前代码目录导览，用来解释每个目录、文件、主要类的职责，以及哪些模块已经实现、哪些模块只是为后续版本预留边界。
 
+目标架构和未来 DDD 分层见 [BKL Business Agent Base Architecture](BKL_Business_Agent_Base_Architecture.md)。
+
+从当前代码迁移到业务智能体基座的迭代路线见 [BKL Business Agent Base Roadmap](BKL_Business_Agent_Base_Roadmap.md)。
+
 ## 1. 为什么有些 Python 文件代码很少
 
 当前项目是 v0.1 的纵向闭环实现，优先把这条主链路跑通：
@@ -21,30 +25,33 @@
 
 ```text
 bkl_engine/engine.py
-bkl_engine/cli/main.py
-bkl_engine/api/main.py
-bkl_engine/agents/*
+bkl_engine/interfaces/cli/main.py
+bkl_engine/interfaces/http/main.py
+bkl_engine/application/agent/*
+bkl_engine/application/skill/*
+bkl_engine/application/tool/*
+bkl_engine/application/execution/*
+bkl_engine/domain/agent/*
 bkl_engine/core/schemas.py
 bkl_engine/core/config.py
-bkl_engine/skills/loader.py
-bkl_engine/skills/runtime.py
-bkl_engine/tools/loader.py
-bkl_engine/tools/python_tool.py
-bkl_engine/tools/api_tool.py
+bkl_engine/infrastructure/package_loaders/*
+bkl_engine/infrastructure/tool_runners/*
+bkl_engine/infrastructure/repositories/*
+bkl_engine/infrastructure/persistence/*
+bkl_engine/infrastructure/tracing/*
 bkl_engine/models/router.py
 bkl_engine/models/providers/*
-bkl_engine/storage/catalog_store.py
 ```
 
 有些文件只有 1-2 行，是刻意保留的模块边界，后续会拆出去：
 
 ```text
-api/routes_tools.py
-api/routes_skills.py
-api/routes_runs.py
-cli/tool_commands.py
-cli/skill_commands.py
-cli/run_commands.py
+interfaces/http/routes_tools.py
+interfaces/http/routes_skills.py
+interfaces/http/routes_runs.py
+interfaces/cli/tool_commands.py
+interfaces/cli/skill_commands.py
+interfaces/cli/run_commands.py
 tools/llm_tool.py
 tools/skill_tool.py
 policy/policy_engine.py
@@ -68,7 +75,7 @@ tests/
   pytest 测试
 
 doc/
-  技术规格、开发清单、架构说明、运行请求说明
+  技术规格、开发清单、架构说明、运行请求说明、业务智能体基座架构和路线图
 
 bkl.yaml
   本地模型配置，真实项目中可以由 bkl init 生成
@@ -83,6 +90,10 @@ bkl.yaml
 bkl_engine/
   __init__.py
   engine.py
+  domain/
+  application/
+  infrastructure/
+  interfaces/
   core/
   cli/
   api/
@@ -95,7 +106,75 @@ bkl_engine/
   policy/
 ```
 
-### 3.1 `engine.py`
+### 3.1 DDD layer package baseline
+
+当前已开始建立目标 DDD 四层包边界：
+
+```text
+domain/
+  领域概念和状态枚举。
+
+application/
+  应用用例、commands、ports。
+
+infrastructure/
+  后续承接数据库、模型 provider、Tool runner、artifact store、secret store、memory adapter。
+
+interfaces/
+  后续承接 CLI、HTTP、SDK、本地 UI 等适配层。
+```
+
+当前已实现：
+
+```text
+domain/agent/schemas.py
+  AgentResponse、RouteDecision、InputResolution 等 Agent 领域数据结构。
+
+domain/agent/scene_mapping.py
+  scene_id -> skill_id + defaults 的确定性映射。
+
+domain/agent/states.py
+  AgentTurnState：Agent turn 显式状态枚举。
+
+domain/execution/states.py
+  ExecutionState：Skill / Agent 执行显式状态枚举。
+
+application/ports.py
+  SkillRegistryPort、ToolRegistryPort、ModelGatewayPort、ToolRunnerPort、ToolExecutorPort、RunStorePort、TraceStorePort、ArtifactStorePort。
+
+application/skill/
+  RunSkillCommand、RunSkillUseCase。
+
+application/agent/
+  HandleAgentMessageCommand、HandleAgentMessageUseCase、AgentLoop、SkillRouter、InputResolver、ActionRegistry。
+
+application/tool/
+  ToolExecutor，依赖 ToolRunnerPort，不直接创建 Python/API runner。
+
+application/execution/
+  SkillRuntime。
+
+infrastructure/package_loaders/
+  Skill loader、Tool loader、OpenAPI importer。
+
+infrastructure/tool_runners/
+  Python Tool runner、API Tool runner。
+
+infrastructure/repositories/
+  InMemorySkillRegistry、InMemoryToolRegistry。
+
+infrastructure/persistence/
+  LocalArtifactStore、JsonCatalogStore、InMemoryRunStore。
+
+infrastructure/tracing/
+  InMemoryTraceStore。
+```
+
+CLI 和 API 已开始通过 application use case 调用核心能力，避免 interface 层直接沉淀业务编排。
+
+`bkl_engine/agents/`、`bkl_engine/skills/`、`bkl_engine/tools/` 目前只作为兼容旧 import path 的 adapter。新实现和新测试应优先使用上面的 DDD canonical path。
+
+### 3.2 `engine.py`
 
 主门面类：`SkillEngine`。
 
@@ -142,32 +221,34 @@ load_catalog()
   从 .bkl/catalog.json 恢复已注册 Tool / Skill。
 ```
 
-### 3.2 `agents/`
+### 3.3 `application/agent/` and `domain/agent/`
 
-Agent 编排层，负责把自然语言或场景请求转成受控的 SkillEngine 调用。
+Agent 编排层，负责把自然语言或场景请求转成受控的 SkillEngine 调用。领域对象放在 `domain/agent/`，应用状态机和动作编排放在 `application/agent/`。
 
 ```text
-agents/schemas.py
+domain/agent/schemas.py
   AgentResponse、RouteDecision、InputResolution、AgentSession、AgentTurn 等数据结构。
 
-agents/scene_mapping.py
+domain/agent/scene_mapping.py
   scene_id -> skill_id + defaults 的确定性映射。
 
-agents/router.py
+application/agent/router.py
   SkillRouter：根据自然语言从已注册 Skill 中选出候选 skill_id。
 
-agents/resolver.py
+application/agent/input_resolver.py
   InputResolver：根据 input.schema.json、scene defaults 和用户文本生成 input draft。
 
-agents/actions.py
+application/agent/actions.py
   ActionRegistry：确定性执行 Agent 动作；当前支持 run Skill、list Skills、list Tools。
 
-agents/confirmation.py
+application/agent/confirmation.py
   ConfirmationPolicy：写入类动作的确认策略边界。
 
-agents/loop.py
+application/agent/state_machine.py
   AgentLoop：串联 route、resolve、act，作为 bkl chat 和 /chat/messages 的核心。
 ```
+
+`bkl_engine/agents/*` 是兼容导出，不再放主实现。
 
 当前 Agent 层已经支持：
 
@@ -188,13 +269,13 @@ Agent session 持久化
 Agent turn trace 持久化
 ```
 
-### 3.3 `core/`
+### 3.4 `core/`
 
 共享基础类型和配置。
 
 ```text
 core/schemas.py
-  所有核心 Pydantic 数据结构。
+  兼容旧 import path 的 schema re-export；canonical schema 已迁到 domain。
 
 core/config.py
   bkl.yaml + .env 配置加载。
@@ -223,18 +304,34 @@ EngineConfig
 BklEngineError
 ```
 
-### 3.3 `skills/`
+Canonical schema 归属：
+
+```text
+domain/skill/
+  Skill、SkillLimits、SkillModelConfig。
+
+domain/tool/
+  Tool、ToolExecutionContext、ToolExecutionResult、ToolPermissions。
+
+domain/execution/
+  RunResult、RunContext、Artifact、TraceEvent、EngineError、UsageSummary。
+
+domain/model/
+  ModelResponse、ModelUsage、ToolCallRequest。
+```
+
+### 3.5 `application/skill/`, `application/execution/`, and `infrastructure/package_loaders/`
 
 Skill 包加载、注册、运行。
 
 ```text
-skills/loader.py
+infrastructure/package_loaders/skill_loader.py
   读取标准 Skill 包：SKILL.md + skill.config.json + schema。
 
-skills/registry.py
-  内存 Skill Registry。
+infrastructure/repositories/skill_registry.py
+  内存 Skill Registry adapter。
 
-skills/runtime.py
+application/execution/skill_runtime.py
   Skill 执行主循环。
 
 skills/prompt.py
@@ -249,6 +346,8 @@ InMemorySkillRegistry
 SkillRuntime
 SkillRuntimeError
 ```
+
+`bkl_engine/skills/loader.py`、`bkl_engine/skills/registry.py`、`bkl_engine/skills/runtime.py` 是兼容导出。新代码应使用 `infrastructure/package_loaders`、`infrastructure/repositories`、`application/skill` 和 `application/execution`。
 
 `SkillRuntime` 当前执行流程：
 
@@ -265,27 +364,27 @@ SkillRuntimeError
 保存 RunResult / Trace
 ```
 
-### 3.4 `tools/`
+### 3.6 `application/tool/`, `infrastructure/package_loaders/`, and `infrastructure/tool_runners/`
 
 Tool 包加载和执行。
 
 ```text
-tools/loader.py
+infrastructure/package_loaders/tool_loader.py
   读取 tool.yaml + input_schema + output_schema。
 
-tools/registry.py
-  内存 Tool Registry。
+infrastructure/repositories/tool_registry.py
+  内存 Tool Registry adapter。
 
-tools/executor.py
-  按 Tool 类型分发执行器。
+application/tool/executor.py
+  按 Tool 类型分发执行器，执行前做 policy check，具体 runner 由外层注入。
 
-tools/python_tool.py
+infrastructure/tool_runners/python_tool.py
   执行 Python Tool，使用 JSON stdin/stdout。
 
-tools/api_tool.py
+infrastructure/tool_runners/api_tool.py
   执行 API Tool。
 
-tools/openapi_importer.py
+infrastructure/package_loaders/openapi_importer.py
   从 OpenAPI operation 生成 API Tool。
 
 tools/llm_tool.py
@@ -307,7 +406,9 @@ ApiToolRunner
 ApiToolExecutionError
 ```
 
-### 3.5 `models/`
+`bkl_engine/tools/loader.py`、`bkl_engine/tools/registry.py`、`bkl_engine/tools/executor.py`、`bkl_engine/tools/python_tool.py`、`bkl_engine/tools/api_tool.py`、`bkl_engine/tools/openapi_importer.py` 是兼容导出。新代码应使用 `application/tool` 和 `infrastructure/*`。
+
+### 3.7 `models/`
 
 模型路由和 provider。
 
@@ -348,18 +449,18 @@ bkl.yaml 里 models.active_profile
   -> Skill 的 model.profile 可覆盖默认 profile
 ```
 
-### 3.6 `storage/`
+### 3.8 `infrastructure/persistence/`
 
 本地存储。
 
 ```text
-storage/artifact_store.py
+infrastructure/persistence/artifact_store.py
   本地 Artifact 存储。
 
-storage/catalog_store.py
+infrastructure/persistence/catalog_store.py
   .bkl/catalog.json 持久化 Tool / Skill 注册表。
 
-storage/repositories.py
+infrastructure/persistence/run_store.py
   内存 Run Store。
 
 storage/database.py
@@ -379,12 +480,14 @@ CatalogEntry
 InMemoryRunStore
 ```
 
-### 3.7 `trace/`
+`bkl_engine/storage/*` 当前是兼容导出，不再放主实现。
+
+### 3.9 `infrastructure/tracing/`
 
 Trace 事件记录。
 
 ```text
-trace/trace_store.py
+infrastructure/tracing/trace_store.py
   内存 trace store。
 
 trace/events.py
@@ -397,19 +500,23 @@ trace/events.py
 InMemoryTraceStore
 ```
 
-### 3.8 `api/`
+`bkl_engine/trace/trace_store.py` 当前是兼容导出。
+
+### 3.10 `interfaces/http/`
 
 FastAPI 服务。
 
 ```text
-api/main.py
+interfaces/http/main.py
   当前所有 API route 都在这里。
 
-api/routes_tools.py
-api/routes_skills.py
-api/routes_runs.py
+interfaces/http/routes_tools.py
+interfaces/http/routes_skills.py
+interfaces/http/routes_runs.py
   后续拆分 route 的占位文件。
 ```
+
+`bkl_engine/api/main.py` 当前是兼容入口，实际实现已经迁到 `interfaces/http/main.py`。
 
 主要类：
 
@@ -442,19 +549,21 @@ GET  /runs/{run_id}/artifacts
 GET  /artifacts/{artifact_id}
 ```
 
-### 3.9 `cli/`
+### 3.11 `interfaces/cli/`
 
 Typer CLI。
 
 ```text
-cli/main.py
+interfaces/cli/main.py
   当前所有 CLI 命令都在这里。
 
-cli/tool_commands.py
-cli/skill_commands.py
-cli/run_commands.py
+interfaces/cli/tool_commands.py
+interfaces/cli/skill_commands.py
+interfaces/cli/run_commands.py
   后续拆分命令的占位文件。
 ```
+
+`bkl_engine/cli/main.py` 当前是兼容入口，`pyproject.toml` 的 `bkl` console script 已指向 `interfaces/cli/main.py`。
 
 当前 CLI：
 
@@ -479,16 +588,16 @@ P0 先把所有命令集中在一个文件，便于快速验证。
 后续稳定后再把 tool/skill/run/trace 命令拆到对应文件。
 ```
 
-### 3.10 `policy/`
+### 3.12 `policy/`
 
 策略和安全控制扩展点。
 
 ```text
 policy/policy_engine.py
-  后续用于 workspace 权限、网络权限、Tool 调用策略、敏感操作确认。
+  PolicyDecision、PolicyEngine 和 ToolExecutionPolicy。
 ```
 
-当前仍是占位。
+当前已接入 `ToolExecutor`，默认策略为 allow，方便保持 v0.1 本地行为不变。产品部署和后续迭代可以注入更严格策略，实现 allow / ask / deny。
 
 ## 4. examples 目录
 
@@ -610,6 +719,10 @@ Artifact store
 Catalog store
 CLI
 FastAPI
+DDD domain/application/infrastructure/interfaces package baseline
+Application use cases for direct Skill run and Agent message turn
+Tool policy check hook
+tool_policy_checked / tool_failed trace events
 talking_video example
 wangbudong_experiment example
 ```
@@ -621,29 +734,36 @@ CLI 命令拆分文件
 API route 拆分文件
 LLM Tool
 Skill-as-Tool
-Policy Engine
 Database persistence
 SQLAlchemy models
 Trace event type definitions
 OpenRouter provider
 Volcengine provider
-bkl chat
-Skill Router
-Scene Mapping
+Agent session persistence
+Agent turn trace persistence
+Agent confirmation resume
+Durable run / trace / artifact stores
+Memory / RAG ports
+Multi-agent task orchestration
 Desktop GUI
 Server auth / Docker / queue
 ```
 
 ## 7. 推荐后续拆分
 
-下一步如果继续整理代码结构，建议按这个顺序拆：
+下一步如果继续整理代码结构，不建议只做机械拆文件。应先按业务智能体基座目标建立 DDD 边界和 ports，再逐步迁移现有模块。
+
+短期建议按这个顺序拆：
 
 ```text
-1. cli/main.py 拆成 cli/tool_commands.py、cli/skill_commands.py、cli/run_commands.py、cli/server_commands.py。
-2. api/main.py 拆成 api/routes_tools.py、api/routes_skills.py、api/routes_runs.py、api/routes_chat.py。
-3. storage/repositories.py 拆成 run_store.py、trace_store.py 或数据库实现。
-4. policy/policy_engine.py 开始承接 Tool 权限、网络权限、文件写权限。
-5. skills/prompt.py 承接 Skill prompt 渲染、schema 摘要、tool 摘要。
+1. 定义 domain / application / infrastructure / interfaces 的目标目录。
+2. 继续补齐 RunStore、TraceStore、ArtifactStore、PolicyEngine、SecretStore、AgentSessionStore、MemoryStore、KnowledgeRetriever 等 ports。
+3. policy/policy_engine.py 继续承接 Tool 权限、网络权限、文件写权限、secret 权限和确认策略。
+4. infrastructure/persistence/run_store.py 和 infrastructure/tracing/trace_store.py 补本地持久化实现，并新增 agent_session_store.py。
+5. application/agent/state_machine.py 从过程式编排升级为显式可恢复 Agent state machine。
+6. interfaces/http/main.py 拆成 interfaces/http/routes_tools.py、routes_skills.py、routes_runs.py、routes_chat.py。
+7. interfaces/cli/main.py 拆成 interfaces/cli/tool_commands.py、skill_commands.py、run_commands.py、server_commands.py、chat_commands.py。
+8. skills/prompt.py 承接 Skill prompt 渲染、schema 摘要、tool 摘要、memory context 摘要。
 ```
 
-当前不急着拆，因为主链路还在快速迭代阶段。等 `bkl chat` 和 `Skill Router` 开始实现时，拆分会更自然。
+拆分时要保持 `SkillEngine` facade 稳定，避免 CLI、API、SDK、未来 UI 各自复制运行逻辑。

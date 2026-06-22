@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from bkl_engine.storage.artifact_store import LocalArtifactStore
-from bkl_engine.trace.trace_store import InMemoryTraceStore
+from bkl_engine.infrastructure.persistence.artifact_store import LocalArtifactStore
+from bkl_engine.infrastructure.tracing.trace_store import InMemoryTraceStore
 
 
 def test_artifact_store_saves_and_lists_text_artifacts(tmp_path: Path) -> None:

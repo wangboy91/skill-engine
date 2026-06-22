@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from bkl_engine.skills.loader import SkillLoadError, load_skill
+from bkl_engine.infrastructure.package_loaders.skill_loader import SkillLoadError, load_skill
 
 
 def test_loads_skill_package_from_directory() -> None:

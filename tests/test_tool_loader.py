@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from bkl_engine.tools.loader import ToolLoadError, load_tool
+from bkl_engine.infrastructure.package_loaders.tool_loader import ToolLoadError, load_tool
 
 
 def test_loads_python_tool_package_from_directory() -> None:

@@ -1,8 +1,10 @@
 from pathlib import Path
 
-from bkl_engine.core.config import load_engine_config
 from bkl_engine.engine import SkillEngine
-from bkl_engine.models.providers.openai_compatible import OpenAICompatibleProvider
+from bkl_engine.infrastructure.config.engine_config import load_engine_config
+from bkl_engine.infrastructure.model_gateway.providers.openai_compatible import (
+    OpenAICompatibleProvider,
+)
 
 
 def test_loads_multiple_model_profiles_with_active_profile(

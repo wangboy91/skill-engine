@@ -4,9 +4,9 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from bkl_engine.api.main import create_app
-from bkl_engine.cli.main import app as cli_app
 from bkl_engine.engine import SkillEngine
+from bkl_engine.interfaces.cli.main import app as cli_app
+from bkl_engine.interfaces.http.main import create_app
 
 
 def test_cli_tool_test_executes_python_tool() -> None:

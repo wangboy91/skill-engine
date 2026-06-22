@@ -1,5 +1,5 @@
-from bkl_engine.skills.registry import InMemorySkillRegistry
-from bkl_engine.tools.registry import InMemoryToolRegistry
+from bkl_engine.infrastructure.repositories.skill_registry import InMemorySkillRegistry
+from bkl_engine.infrastructure.repositories.tool_registry import InMemoryToolRegistry
 
 
 def test_tool_registry_registers_and_filters_allowed_tools() -> None:

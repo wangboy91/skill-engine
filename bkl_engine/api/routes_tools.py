@@ -1,2 +1,0 @@
-"""Tool API route primitives."""
-

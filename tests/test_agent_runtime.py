@@ -1,8 +1,8 @@
 import asyncio
 from pathlib import Path
 
-from bkl_engine.agents.loop import AgentLoop
-from bkl_engine.agents.scene_mapping import SceneDefinition, SceneMapping
+from bkl_engine.application.agent.state_machine import AgentLoop
+from bkl_engine.domain.agent import SceneDefinition, SceneMapping
 from bkl_engine.engine import SkillEngine
 
 

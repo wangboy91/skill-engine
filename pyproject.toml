@@ -31,7 +31,7 @@ dev = [
 ]
 
 [project.scripts]
-bkl = "bkl_engine.cli.main:app"
+bkl = "bkl_engine.interfaces.cli.main:app"
 
 [tool.setuptools.packages.find]
 include = ["bkl_engine*"]
